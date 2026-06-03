@@ -7,39 +7,13 @@ import os
 
 from solar_calc import run_simulation
 
-# ---------- ПРОВЕРКА ИМПОРТА solar_calc ----------
-try:
-    from solar_calc import run_simulation
-    st.success("✅ Модуль solar_calc успешно загружен")
-except Exception as e:
-    st.error(f"❌ Ошибка импорта solar_calc: {e}")
-    st.stop()
+st.set_page_config(page_title="Солнечная электростанция", layout="wide")
 
-# ---------- НАСТРОЙКА СТРАНИЦЫ ----------
-st.set_page_config(page_title="Солнечная электростанция", layout="wide", initial_sidebar_state="expanded")
-
-# ---------- СТИЛИ (градиент, кнопки) ----------
 st.markdown("""
 <style>
-    .stApp {
-        background: linear-gradient(135deg, #2b1b4e 0%, #5b4c7a 30%, #e0c3b0 70%, #f9e4b7 100%);
-        background-attachment: fixed;
-    }
-    .stButton > button {
-        background-color: rgba(28, 4, 123, 0.2);
-        border: 2px solid #1c047b;
-        border-radius: 30px;
-        color: #1c047b;
-        font-weight: bold;
-        transition: 0.2s;
-    }
-    .stButton > button:hover {
-        background-color: rgba(28, 4, 123, 0.4);
-        border-color: #0a0138;
-    }
-    h1, h2, h3 {
-        color: #1c047b;
-    }
+    .stApp { background: linear-gradient(135deg, #2b1b4e 0%, #5b4c7a 30%, #e0c3b0 70%, #f9e4b7 100%); background-attachment: fixed; }
+    .stButton > button { background-color: rgba(28,4,123,0.2); border: 2px solid #1c047b; border-radius: 30px; color: #1c047b; font-weight: bold; }
+    .stButton > button:hover { background-color: rgba(28,4,123,0.4); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -136,9 +110,8 @@ with st.sidebar:
 
 # ---------- ОСНОВНАЯ ОБЛАСТЬ ----------
 st.markdown("# 🌞 Моделирование солнечной электростанции")
-st.markdown("### Заполните параметры в боковой панели, затем нажмите кнопку ниже")
+st.markdown("### Заполните параметры в боковой панели, затем нажмите кнопку")
 
-# Кнопка запуска расчёта (на главной странице)
 if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
     params = {
         'lat': lat, 'lon': lon, 'timezone': tz,
@@ -182,7 +155,7 @@ if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
         except Exception as e:
             st.error(f"Ошибка при расчёте: {e}")
 
-# ---------- ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ (если уже посчитано) ----------
+# ---------- ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ ----------
 if st.session_state.get('calculation_done', False):
     df = st.session_state['df_results']
     st.subheader("📊 Результаты моделирования")
