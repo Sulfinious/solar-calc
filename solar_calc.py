@@ -685,7 +685,7 @@ def run_simulation(params):
     for fname, title in graphs:
         path = os.path.join(img_dir, fname)
         if os.path.exists(path):
-            pdf.set_font('DejaVu', '', 10); pdf.cell(0, 6, title, ln=True)
+            pdf.set_font('helvetica', '', 10); pdf.cell(0, 6, title, ln=True)
             pdf.image(path, x=10, w=190); pdf.ln(4)
 
     pdf_output_path = os.path.join(LOCAL_BASE_PATH, 'отчёт_моделирования.pdf')
