@@ -653,31 +653,33 @@ def run_simulation(params):
     # Создание PDF
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font('helvetica', '', 12)
+    font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+    pdf.add_font('DejaVu', '', font_path, uni=True)
+    pdf.set_font('DejaVu', '', 12)
     pdf.cell(0, 10, 'Отчёт о моделировании солнечной электростанции', ln=True, align='C')
-    pdf.ln(5); pdf.set_font('helvetica', '', 10)
+    pdf.ln(5); pdf.set_font('DejaVu', '', 10)
     pdf.cell(0, 8, f'Период: {start_str} – {end_str} | Широта {lat}°, долгота {lon}°', ln=True)
-    pdf.ln(3); pdf.set_font('helvetica', '', 12); pdf.cell(0, 8, 'Параметры нагрузки', ln=True); pdf.set_font('helvetica', '', 10)
+    pdf.ln(3); pdf.set_font('DejaVu', '', 12); pdf.cell(0, 8, 'Параметры нагрузки', ln=True); pdf.set_font('DejaVu', '', 10)
     pdf.cell(0, 6, f'Максимальная нагрузка: {max_load_power_kw:.2f} кВт', ln=True)
     pdf.cell(0, 6, f'Рабочие часы: {max_load_work_hours:.2f} ч', ln=True)
     pdf.cell(0, 6, f'Нагрузка за 1 час: макс {load_power_max_w:.2f} Вт, средняя {load_power_normal_w:.2f} Вт, мин {load_power_min_w:.2f} Вт', ln=True)
     pdf.cell(0, 6, f'Суточная потребность: итого {daily_energy_wh:.2f} Вт·ч', ln=True)
-    pdf.ln(3); pdf.set_font('helvetica', '', 12); pdf.cell(0, 8, 'Раскладка панелей', ln=True); pdf.set_font('helvetica', '', 10)
+    pdf.ln(3); pdf.set_font('DejaVu', '', 12); pdf.cell(0, 8, 'Раскладка панелей', ln=True); pdf.set_font('DejaVu', '', 10)
     pdf.cell(0, 6, f'Эффективная площадь панелей: {round(photoCellSquare,2)} м²', ln=True)
     pdf.cell(0, 6, f'Ориентация: {best_layout.get("orientation","N/A")}', ln=True); pdf.cell(0, 6, f'Всего панелей: {best_layout.get("total_panels",0)}', ln=True)
-    pdf.ln(3); pdf.set_font('helvetica', '', 12); pdf.cell(0, 8, 'Сбалансированное оборудование', ln=True); pdf.set_font('helvetica', '', 10)
+    pdf.ln(3); pdf.set_font('DejaVu', '', 12); pdf.cell(0, 8, 'Сбалансированное оборудование', ln=True); pdf.set_font('DejaVu', '', 10)
     pdf.cell(0, 6, f'Инверторов: {n_inverters_required}', ln=True)
     pdf.cell(0, 6, f'Панелей: {installed_panels}, в строке: {panels_per_string}, строк: {total_strings}', ln=True)
     pdf.cell(0, 6, f'Напряжение батарейного банка: {battery_bank_voltage:.2f} В', ln=True)
     pdf.cell(0, 6, f'Параллельных веток: {battery_parallel_count}, всего АКБ: {numberbattery_total}', ln=True)
     pdf.cell(0, 6, f'Номинальная ёмкость: {nominal_capacity_battery:.2f} А·ч', ln=True)
-    pdf.ln(3); pdf.set_font('helvetica', '', 12); pdf.cell(0, 8, 'Дефицит и баланс', ln=True); pdf.set_font('helvetica', '', 10)
+    pdf.ln(3); pdf.set_font('DejaVu', '', 12); pdf.cell(0, 8, 'Дефицит и баланс', ln=True); pdf.set_font('DejaVu', '', 10)
     daily_actual = full_range_filtered_hes_data['load_energy_step_wh'].sum()
     pdf.cell(0, 6, f'Суточная энергия нагрузки: {daily_actual:.2f} Вт·ч', ln=True)
     pdf.cell(0, 6, f'Макс дефицит после АКБ: {full_range_filtered_hes_data["deficit_after_battery_w"].max():.2f} Вт', ln=True)
     pdf.cell(0, 6, f'Потребление из сети: {full_range_filtered_hes_data["grid_energy_step_wh"].sum():.2f} Вт·ч', ln=True)
 
-    pdf.add_page(); pdf.set_font('helvetica', '', 12); pdf.cell(0, 8, 'Графики', ln=True); pdf.ln(2)
+    pdf.add_page(); pdf.set_font('DejaVu', '', 12); pdf.cell(0, 8, 'Графики', ln=True); pdf.ln(2)
     graphs = [('solar_flux_clear.png','Солнечный поток (Clear Sky)'), ('cloudiness.png','Облачность'), ('temperature.png','Температура'),
               ('solar_flux_cloudy.png','Солнечный поток с учётом облачности'), ('energy.png','Выработанная и необходимая энергия'),
               ('battery_balance.png','Баланс энергии в АКБ'), ('charge_discharge.png','Заряд и разряд АКБ'),
@@ -685,7 +687,7 @@ def run_simulation(params):
     for fname, title in graphs:
         path = os.path.join(img_dir, fname)
         if os.path.exists(path):
-            pdf.set_font('helvetica', '', 10); pdf.cell(0, 6, title, ln=True)
+            pdf.set_font('DejaVu', '', 10); pdf.cell(0, 6, title, ln=True)
             pdf.image(path, x=10, w=190); pdf.ln(4)
 
     pdf_output_path = os.path.join(LOCAL_BASE_PATH, 'отчёт_моделирования.pdf')
