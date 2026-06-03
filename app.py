@@ -1,26 +1,17 @@
 # -*- coding: utf-8 -*-
-"""Скопировано из Предфинального вариант.py, но переделано в функцию run_simulation(params)"""
-
 import sqlite3
 import pandas as pd
 import numpy as np
 import pytz
 import os
-import seaborn as sns
-from scipy.optimize import minimize
-from scipy.stats import linregress
+import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 from tabulate import tabulate
-from matplotlib.dates import DateFormatter, MonthLocator
-import matplotlib.pyplot as plt
-import boto3
-import xarray as xr
-import argparse
-import tempfile
-import sys
 import requests
 import math
 import warnings
+from fpdf import FPDF
+
 warnings.filterwarnings('ignore')
 
 # ===================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ (будут переопределены из params) =====================
