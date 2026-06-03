@@ -573,8 +573,14 @@ def run_simulation(params):
         full_range_filtered_hes_data.at[i, 'grid_energy_step_wh'] = grid_charge_power * dt
         full_range_filtered_hes_data.at[i, 'deficit_after_pv_w'] = deficit_after_pv_w
         full_range_filtered_hes_data.at[i, 'deficit_after_battery_w'] = deficit_after_battery_w
-    full_range_filtered_hes_data['balance_no_battery_w'] = full_range_filtered_hes_data['pv_ac_available_w'] - full_range_filtered_hes_data['load_power_current_w']
-    full_range_filtered_hes_data['balance_with_battery_w'] = full_range_filtered_hes_data['pv_ac_available_w'] + full_range_filtered_hes_data['battery_ac_supply_w'] - full_range_filtered_hes_data['load_power_current_w']
+        full_range_filtered_hes_data['balance_no_battery_w'] = full_range_filtered_hes_data['pv_ac_available_w'] - full_range_filtered_hes_data['load_power_current_w']
+        full_range_filtered_hes_data['balance_with_battery_w'] = full_range_filtered_hes_data['pv_ac_available_w'] + full_range_filtered_hes_data['battery_ac_supply_w'] - full_range_filtered_hes_data['load_power_current_w']
+        # Добавить расчёт накопленной солнечной энергии
+        full_range_filtered_hes_data['solar_energy_step_wh'] = full_range_filtered_hes_data['solar_power_after_pv_cable_w'] * full_range_filtered_hes_data['hour_diff']
+        full_range_filtered_hes_data['solar_energy'] = full_range_filtered_hes_data['solar_energy_step_wh'].cumsum()
+
+        # Добавить колонку с минимальным порогом энергии АКБ (для графика)
+        full_range_filtered_hes_data['battery_min_energy_wh'] = battery_energy_control_min_wh
 
     # ---------- 7. Формирование PDF-отчёта (код из оригинала) ----------
     from fpdf import FPDF
