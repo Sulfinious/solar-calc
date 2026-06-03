@@ -1,4 +1,3 @@
-%%writefile solar_calc.py
 # -*- coding: utf-8 -*-
 """Скопировано из Предфинального вариант.py, но переделано в функцию run_simulation(params)"""
 
