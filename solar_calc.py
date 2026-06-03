@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import os
 
+from solar_calc import run_simulation
+
 # ---------- ПРОВЕРКА ИМПОРТА solar_calc ----------
 try:
     from solar_calc import run_simulation
