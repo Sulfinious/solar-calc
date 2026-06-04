@@ -668,12 +668,8 @@ def run_simulation(params):
     pdf.set_font('DejaVu', '', 10)
     pdf.cell(0, 6, f'Максимальная нагрузка: {max_load_power_kw:.2f} кВт', ln=True)
     pdf.cell(0, 6, f'Рабочие часы: {max_load_work_hours:.2f} ч', ln=True)
-    pdf.cell(0, 6, f'Нагрузка за 1 час: макс {load_power_max_w:.2f} Вт, '
-                    f'средняя {load_power_normal_w:.2f} Вт, минимальная {load_power_min_w:.2f} Вт', ln=True)
-    pdf.cell(0, 6, 'Суточная потребность:', ln=True)
-    pdf.cell(0, 6, f'мин. {daily_energy_min_wh:.2f} Вт·ч, '
-                    f'средняя {daily_energy_normal_wh:.2f} Вт·ч, макс. {daily_energy_max_wh:.2f} Вт·ч, '
-                    f'итого {daily_energy_wh:.2f} Вт·ч', ln=True)
+    pdf.cell(0, 6, f'Нагрузка за 1 час: макс {load_power_max_w:.2f} Вт, средняя {load_power_normal_w:.2f} Вт, мин {load_power_min_w:.2f} Вт', ln=True)
+    pdf.cell(0, 6, f'Суточная потребность: итого {daily_energy_wh:.2f} Вт·ч', ln=True)
     
     # --- Раскладка панелей ---
     pdf.ln(3)
