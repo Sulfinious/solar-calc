@@ -28,6 +28,16 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ---------- ИНИЦИАЛИЗАЦИЯ СОСТОЯНИЯ ----------
+if 'lat' not in st.session_state:
+    st.session_state.lat = 50.739537
+if 'lon' not in st.session_state:
+    st.session_state.lon = 136.567232
+if 'show_map' not in st.session_state:
+    st.session_state.show_map = True
+if 'calculation_done' not in st.session_state:
+    st.session_state.calculation_done = False
+    
 # ---------- БОКОВАЯ ПАНЕЛЬ (все параметры) ----------
 with st.sidebar:
     st.title("⚙️ Параметры системы")
