@@ -738,12 +738,24 @@ def run_simulation(params):
 
     # График 1: Солнечная энергия (df1)
     def save_plot1():
-        fig, ax = plt.subplots(figsize=(10, 4))
-        ax.plot(df1['datetime'], df1['solar_flux'], linestyle='-')
-        ax.set_xlabel('Дата'); ax.set_ylabel('Solar flux (W/m²)')
-        ax.set_title('Интенсивность солнечного потока (Clear Sky)')
-        ax.grid(True)
-        fig.tight_layout(); fig.savefig(os.path.join(img_dir, 'solar_flux_clear.png')); plt.close(fig)
+    # Приводим к datetime и фильтруем по периоду
+    df1_filtered = df1.copy()
+    df1_filtered['datetime'] = pd.to_datetime(df1_filtered['datetime'])
+    start_dt = pd.to_datetime(start_str)
+    end_dt = pd.to_datetime(end_str)
+    df1_filtered = df1_filtered[(df1_filtered['datetime'] >= start_dt) & (df1_filtered['datetime'] <= end_dt)]
+    # Удаляем дубликаты по времени и сортируем
+    df1_filtered = df1_filtered.drop_duplicates(subset='datetime').sort_values('datetime').reset_index(drop=True)
+    
+    fig, ax = plt.subplots(figsize=(10,4))
+    # Используем plot с маркерами для наглядности (но можно и без)
+    ax.plot(df1_filtered['datetime'], df1_filtered['solar_flux'], linestyle='-', linewidth=1)
+    ax.set_xlabel('Дата'); ax.set_ylabel('Solar flux (W/m²)')
+    ax.set_title('Интенсивность солнечного потока (Clear Sky)')
+    ax.grid(True)
+    fig.tight_layout()
+    fig.savefig(os.path.join(img_dir, 'solar_flux_clear.png'))
+    plt.close(fig)
     
     # График 2: Облачность (df2)
     def save_plot2():
@@ -771,12 +783,22 @@ def run_simulation(params):
     
     # График 4: Солнечная энергия с учётом облачности (df3)
     def save_plot4():
-        fig, ax = plt.subplots(figsize=(10, 4))
-        ax.plot(df3['datetime'], df3['solar_flux'], linestyle='-')
-        ax.set_xlabel('Дата'); ax.set_ylabel('Solar flux (W/m²)')
-        ax.set_title('Интенсивность солнечного потока с учётом облачности')
-        ax.grid(True)
-        fig.tight_layout(); fig.savefig(os.path.join(img_dir, 'solar_flux_cloudy.png')); plt.close(fig)
+    df3_filtered = df3.copy()
+    df3_filtered['datetime'] = pd.to_datetime(df3_filtered['datetime'])
+    start_dt = pd.to_datetime(start_str)
+    end_dt = pd.to_datetime(end_str)
+    df3_filtered = df3_filtered[(df3_filtered['datetime'] >= start_dt) & (df3_filtered['datetime'] <= end_dt)]
+    df3_filtered = df3_filtered.drop_duplicates(subset='datetime').sort_values('datetime').reset_index(drop=True)
+    
+    fig, ax = plt.subplots(figsize=(10,4))
+    ax.plot(df3_filtered['datetime'], df3_filtered['solar_flux'], linestyle='-', linewidth=1)
+    ax.set_xlabel('Дата'); ax.set_ylabel('Solar flux (W/m²)')
+    ax.set_title('Интенсивность солнечного потока с учётом облачности')
+    ax.grid(True)
+    fig.tight_layout()
+    fig.savefig(os.path.join(img_dir, 'solar_flux_cloudy.png'))
+    plt.close(fig)
+    
     save_plot1(); save_plot2(); save_plot3(); save_plot4()
     save_energy_graph(full_range_filtered_hes_data, os.path.join(img_dir, 'energy.png'))
     save_battery_balance_graph(full_range_filtered_hes_data, battery_energy_control_min_wh, os.path.join(img_dir, 'battery_balance.png'))
