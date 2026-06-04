@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 import os
+from streamlit_folium import st_folium
+import folium 
 
 from solar_calc import run_simulation
 
