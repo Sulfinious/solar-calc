@@ -582,102 +582,102 @@ def run_simulation(params):
         # Добавить колонку с минимальным порогом энергии АКБ (для графика)
         full_range_filtered_hes_data['battery_min_energy_wh'] = battery_energy_control_min_wh
 
-    # ===================== ДОПОЛНИТЕЛЬНЫЕ РАСЧЁТЫ ДЛЯ ПОЛНОГО ОТЧЁТА =====================
-    # (переносим логику из оригинального скрипта)
-
-    # --- Проверка совместимости оборудования ---
-    total_inv_nominal_power = inverter_nominal_power * n_inverters_required
-    inverter_power_ok = total_inv_nominal_power >= required_inverter_power
-    battery_voltage_ok = inverter_battery_voltage_min <= battery_bank_voltage <= inverter_battery_voltage_max
-    inverter_battery_current_ok = battery_current_per_inv <= inverter_max_battery_discharge_current
-    total_battery_discharge_limit_a = battery_parallel_count * battery_nominal_ah * kCharge
-    total_required_battery_current_a = battery_current_per_inv * n_inverters_required
-    battery_current_ok = total_required_battery_current_a <= total_battery_discharge_limit_a
-    usable_battery_energy_wh = battery_energy_max_wh - battery_energy_control_min_wh
-    battery_energy_ok = usable_battery_energy_wh >= daily_energy_wh * 1.0  # autonomy days = 1
-    pv_panels_min_per_string = math.ceil(max(inverter_mppt_min, inverter_pv_start_voltage) / panel_Vmp)
-    pv_panels_max_per_string = math.floor(min(inverter_mppt_max, inverter_pv_max_voltage) / panel_Voc)
-    pv_string_voltage_ok = pv_panels_min_per_string <= panels_per_string <= pv_panels_max_per_string
-    if best_layout["electrical_ok"] and total_strings:
-        strings_per_mppt_actual = math.ceil(total_strings / (n_inverters_required * inverter_mppt_count))
-        pv_current_per_mppt = strings_per_mppt_actual * panel_Isc
-        pv_current_ok = (pv_current_per_mppt <= inverter_pv_max_current_per_mppt and
-                         pv_current_per_mppt <= inverter_pv_max_isc_per_mppt)
-    else:
-        pv_current_ok = False
-    equipment_ok = (inverter_power_ok and battery_voltage_ok and inverter_battery_current_ok and
-                    battery_current_ok and battery_energy_ok and pv_string_voltage_ok and pv_current_ok)
-
-    # --- Ориентация панелей (оптимальный угол) ---
-    tilt_opt, az_opt = optimal_tilt_azimuth(lat)
-
-    # --- Периоды дефицита (без учёта АКБ) ---
-    mask_deficit = full_range_filtered_hes_data['balance_no_battery_w'] < 0
-    if mask_deficit.any():
-        group_ids = (mask_deficit != mask_deficit.shift()).cumsum()
-        deficit_periods = full_range_filtered_hes_data[mask_deficit].groupby(group_ids[mask_deficit])
-        periods_list = []
-        total_deficit_energy_wh = 0.0
-        for _, period in deficit_periods:
-            start_time = period['datetime'].iloc[0]
-            end_time   = period['datetime'].iloc[-1]
-            energy_wh = (-period['balance_no_battery_w'] * period['hour_diff']).sum()
-            periods_list.append({'Начало дефицита': start_time, 'Конец дефицита': end_time, 'Энергия дефицита, Вт·ч': round(energy_wh, 2)})
-            total_deficit_energy_wh += energy_wh
-        deficit_df = pd.DataFrame(periods_list)
-    else:
-        deficit_df = pd.DataFrame()
-        total_deficit_energy_wh = 0.0
-
-    # --- Периоды низкого заряда АКБ ---
-    def find_periods_at_or_below_threshold(df, datetime_col, energy_col, limit, eps=1e-9):
-        tmp = df[[datetime_col, energy_col]].copy()
-        tmp[datetime_col] = pd.to_datetime(tmp[datetime_col], errors='coerce')
-        tmp[energy_col] = pd.to_numeric(tmp[energy_col], errors='coerce')
-        tmp = tmp.dropna(subset=[datetime_col, energy_col]).sort_values(datetime_col).reset_index(drop=True)
-        mask = tmp[energy_col] <= (limit + eps)
-        if not mask.any():
-            return []
-        group_id = (mask != mask.shift()).cumsum()
-        periods = []
-        for _, g in tmp[mask].groupby(group_id[mask]):
-            periods.append((g[datetime_col].iloc[0], g[datetime_col].iloc[-1]))
-        return periods
-
-    battery_control_min_periods = find_periods_at_or_below_threshold(
-        full_range_filtered_hes_data, 'datetime', 'battery_energy', battery_energy_control_min_wh
-    )
-
-    # --- Подключения к электросети для зарядки АКБ ---
-    mask_grid = full_range_filtered_hes_data['grid_import_w'] > 0
-    if mask_grid.any():
-        group_ids_grid = (mask_grid != mask_grid.shift()).cumsum()
-        periods_grid = full_range_filtered_hes_data[mask_grid].groupby(group_ids_grid[mask_grid])
-        connections = []
-        for _, group in periods_grid:
-            start_time = group['datetime'].iloc[0]
-            end_time   = group['datetime'].iloc[-1]
-            connections.append((start_time, end_time))
-        connect_df = pd.DataFrame(connections, columns=['datetime_start', 'datetime_end'])
-        connect_df['connection_number'] = range(1, len(connect_df) + 1)
-        connect_df = connect_df[['connection_number', 'datetime_start', 'datetime_end']]
-    else:
-        connect_df = pd.DataFrame()
-
-    # --- Дополнительные метрики для раздела "Дефицит и баланс" ---
-    peak_pv_deficit_w = full_range_filtered_hes_data['deficit_after_pv_w'].max()
-    peak_battery_deficit_w = full_range_filtered_hes_data['deficit_after_battery_w'].max()
-    total_grid_energy_wh = full_range_filtered_hes_data['grid_energy_step_wh'].sum()
-    total_battery_charge_wh = full_range_filtered_hes_data['battery_charge_power_w'].sum()
-    total_battery_discharge_wh = full_range_filtered_hes_data['battery_discharge_power_w'].sum()
-
-    # Количество панелей, активная площадь и т.д. (уже есть, но переопределим на всякий случай)
-    numberpanel = installed_panels
-    panel_active_area_m2 = photoCellWidth * photoCellHigh * photoCellNum
-    pv_array_active_area_m2 = panel_active_area_m2 * numberpanel
-    battery_series_count = battery_series_count  # уже есть
-    battery_parallel_count = battery_parallel_count
-    numberbattery = numberbattery_total
+        # ===================== ДОПОЛНИТЕЛЬНЫЕ РАСЧЁТЫ ДЛЯ ПОЛНОГО ОТЧЁТА =====================
+        # (переносим логику из оригинального скрипта)
+    
+        # --- Проверка совместимости оборудования ---
+        total_inv_nominal_power = inverter_nominal_power * n_inverters_required
+        inverter_power_ok = total_inv_nominal_power >= required_inverter_power
+        battery_voltage_ok = inverter_battery_voltage_min <= battery_bank_voltage <= inverter_battery_voltage_max
+        inverter_battery_current_ok = battery_current_per_inv <= inverter_max_battery_discharge_current
+        total_battery_discharge_limit_a = battery_parallel_count * battery_nominal_ah * kCharge
+        total_required_battery_current_a = battery_current_per_inv * n_inverters_required
+        battery_current_ok = total_required_battery_current_a <= total_battery_discharge_limit_a
+        usable_battery_energy_wh = battery_energy_max_wh - battery_energy_control_min_wh
+        battery_energy_ok = usable_battery_energy_wh >= daily_energy_wh * 1.0  # autonomy days = 1
+        pv_panels_min_per_string = math.ceil(max(inverter_mppt_min, inverter_pv_start_voltage) / panel_Vmp)
+        pv_panels_max_per_string = math.floor(min(inverter_mppt_max, inverter_pv_max_voltage) / panel_Voc)
+        pv_string_voltage_ok = pv_panels_min_per_string <= panels_per_string <= pv_panels_max_per_string
+        if best_layout["electrical_ok"] and total_strings:
+            strings_per_mppt_actual = math.ceil(total_strings / (n_inverters_required * inverter_mppt_count))
+            pv_current_per_mppt = strings_per_mppt_actual * panel_Isc
+            pv_current_ok = (pv_current_per_mppt <= inverter_pv_max_current_per_mppt and
+                             pv_current_per_mppt <= inverter_pv_max_isc_per_mppt)
+        else:
+            pv_current_ok = False
+        equipment_ok = (inverter_power_ok and battery_voltage_ok and inverter_battery_current_ok and
+                        battery_current_ok and battery_energy_ok and pv_string_voltage_ok and pv_current_ok)
+    
+        # --- Ориентация панелей (оптимальный угол) ---
+        tilt_opt, az_opt = optimal_tilt_azimuth(lat)
+    
+        # --- Периоды дефицита (без учёта АКБ) ---
+        mask_deficit = full_range_filtered_hes_data['balance_no_battery_w'] < 0
+        if mask_deficit.any():
+            group_ids = (mask_deficit != mask_deficit.shift()).cumsum()
+            deficit_periods = full_range_filtered_hes_data[mask_deficit].groupby(group_ids[mask_deficit])
+            periods_list = []
+            total_deficit_energy_wh = 0.0
+            for _, period in deficit_periods:
+                start_time = period['datetime'].iloc[0]
+                end_time   = period['datetime'].iloc[-1]
+                energy_wh = (-period['balance_no_battery_w'] * period['hour_diff']).sum()
+                periods_list.append({'Начало дефицита': start_time, 'Конец дефицита': end_time, 'Энергия дефицита, Вт·ч': round(energy_wh, 2)})
+                total_deficit_energy_wh += energy_wh
+            deficit_df = pd.DataFrame(periods_list)
+        else:
+            deficit_df = pd.DataFrame()
+            total_deficit_energy_wh = 0.0
+    
+        # --- Периоды низкого заряда АКБ ---
+        def find_periods_at_or_below_threshold(df, datetime_col, energy_col, limit, eps=1e-9):
+            tmp = df[[datetime_col, energy_col]].copy()
+            tmp[datetime_col] = pd.to_datetime(tmp[datetime_col], errors='coerce')
+            tmp[energy_col] = pd.to_numeric(tmp[energy_col], errors='coerce')
+            tmp = tmp.dropna(subset=[datetime_col, energy_col]).sort_values(datetime_col).reset_index(drop=True)
+            mask = tmp[energy_col] <= (limit + eps)
+            if not mask.any():
+                return []
+            group_id = (mask != mask.shift()).cumsum()
+            periods = []
+            for _, g in tmp[mask].groupby(group_id[mask]):
+                periods.append((g[datetime_col].iloc[0], g[datetime_col].iloc[-1]))
+            return periods
+    
+        battery_control_min_periods = find_periods_at_or_below_threshold(
+            full_range_filtered_hes_data, 'datetime', 'battery_energy', battery_energy_control_min_wh
+        )
+    
+        # --- Подключения к электросети для зарядки АКБ ---
+        mask_grid = full_range_filtered_hes_data['grid_import_w'] > 0
+        if mask_grid.any():
+            group_ids_grid = (mask_grid != mask_grid.shift()).cumsum()
+            periods_grid = full_range_filtered_hes_data[mask_grid].groupby(group_ids_grid[mask_grid])
+            connections = []
+            for _, group in periods_grid:
+                start_time = group['datetime'].iloc[0]
+                end_time   = group['datetime'].iloc[-1]
+                connections.append((start_time, end_time))
+            connect_df = pd.DataFrame(connections, columns=['datetime_start', 'datetime_end'])
+            connect_df['connection_number'] = range(1, len(connect_df) + 1)
+            connect_df = connect_df[['connection_number', 'datetime_start', 'datetime_end']]
+        else:
+            connect_df = pd.DataFrame()
+    
+        # --- Дополнительные метрики для раздела "Дефицит и баланс" ---
+        peak_pv_deficit_w = full_range_filtered_hes_data['deficit_after_pv_w'].max()
+        peak_battery_deficit_w = full_range_filtered_hes_data['deficit_after_battery_w'].max()
+        total_grid_energy_wh = full_range_filtered_hes_data['grid_energy_step_wh'].sum()
+        total_battery_charge_wh = full_range_filtered_hes_data['battery_charge_power_w'].sum()
+        total_battery_discharge_wh = full_range_filtered_hes_data['battery_discharge_power_w'].sum()
+    
+        # Количество панелей, активная площадь и т.д. (уже есть, но переопределим на всякий случай)
+        numberpanel = installed_panels
+        panel_active_area_m2 = photoCellWidth * photoCellHigh * photoCellNum
+        pv_array_active_area_m2 = panel_active_area_m2 * numberpanel
+        battery_series_count = battery_series_count  # уже есть
+        battery_parallel_count = battery_parallel_count
+        numberbattery = numberbattery_total
 
     # ---------- 7. Формирование PDF-отчёта (код из оригинала) ----------
     from fpdf import FPDF
@@ -819,32 +819,31 @@ def run_simulation(params):
     pdf.cell(0, 6, f'  Угол наклона: {tilt_opt:.1f}°', ln=True)
     pdf.cell(0, 6, f'  Азимут: {az_opt:.1f}° (0=север, 180=юг)', ln=True)
     
-    # --- Дефицит и баланс ---
+  # --- Дефицит и баланс ---
     pdf.add_page()
     pdf.set_font('DejaVu', '', 12)
     pdf.cell(0, 8, 'Дефицит и баланс', ln=True)
     pdf.set_font('DejaVu', '', 10)
-    if 'full_range_filtered_hes_data' in globals():
-        daily_actual = full_range_filtered_hes_data['load_energy_step_wh'].sum()
-        pdf.cell(0, 6, f'Количество панелей: {numberpanel}', ln=True)
-        pdf.cell(0, 6, f'Активная площадь массива: {pv_array_active_area_m2:.2f} м²', ln=True)
-        pdf.cell(0, 6, f'Активная площадь одной панели: {panel_active_area_m2:.3f} м²', ln=True)
-        pdf.cell(0, 6, f'Модулей АКБ в серии: {battery_series_count}, параллельных веток: {battery_parallel_count}, всего АКБ: {numberbattery}', ln=True)
-        pdf.cell(0, 6, f'Напряжение банка: {battery_bank_voltage:.2f} В', ln=True)
-        pdf.cell(0, 6, f'Доступная ёмкость: {batteryCapacityLim:.2f} А·ч, фактическая: {batteryCapacity:.2f} А·ч', ln=True)
-        pdf.cell(0, 6, f'Мин. допустимая (контроль): {battery_DoD:.2f} А·ч', ln=True)
-        pdf.cell(0, 6, f'Контрольный минимум энергии: {battery_energy_control_min_wh:.2f} Вт·ч', ln=True)
-        pdf.cell(0, 6, f'Диапазон энергии АКБ: {battery_energy_floor_wh:.2f}..{battery_energy_max_wh:.2f} Вт·ч', ln=True)
-        pdf.cell(0, 6, f'Суточная энергия нагрузки: {daily_actual:.2f} Вт·ч', ln=True)
-        if 'peak_pv_deficit_w' in globals():
-            pdf.cell(0, 6, f'Макс. дефицит после PV: {peak_pv_deficit_w:.2f} Вт', ln=True)
-            pdf.cell(0, 6, f'Макс. дефицит после АКБ: {peak_battery_deficit_w:.2f} Вт', ln=True)
-            pdf.cell(0, 6, f'Потребление из сети: {total_grid_energy_wh:.2f} Вт·ч', ln=True)
-            pdf.cell(0, 6, f'Суммарный заряд АКБ: {total_battery_charge_wh:.2f} Вт, разряд: {total_battery_discharge_wh:.2f} Вт', ln=True)
-            if len(full_range_filtered_hes_data) > 0:
-                start_e = full_range_filtered_hes_data.iloc[0]['battery_energy']
-                end_e = full_range_filtered_hes_data.iloc[-1]['battery_energy']
-                pdf.cell(0, 6, f'Начальный заряд: {start_e:.2f} Вт·ч, конечный: {end_e:.2f} Вт·ч', ln=True)
+    
+    daily_actual = full_range_filtered_hes_data['load_energy_step_wh'].sum()
+    pdf.cell(0, 6, f'Количество панелей: {numberpanel}', ln=True)
+    pdf.cell(0, 6, f'Активная площадь массива: {pv_array_active_area_m2:.2f} м²', ln=True)
+    pdf.cell(0, 6, f'Активная площадь одной панели: {panel_active_area_m2:.3f} м²', ln=True)
+    pdf.cell(0, 6, f'Модулей АКБ в серии: {battery_series_count}, параллельных веток: {battery_parallel_count}, всего АКБ: {numberbattery}', ln=True)
+    pdf.cell(0, 6, f'Напряжение банка: {battery_bank_voltage:.2f} В', ln=True)
+    pdf.cell(0, 6, f'Доступная ёмкость: {batteryCapacityLim:.2f} А·ч, фактическая: {batteryCapacity:.2f} А·ч', ln=True)
+    pdf.cell(0, 6, f'Мин. допустимая (контроль): {battery_DoD:.2f} А·ч', ln=True)
+    pdf.cell(0, 6, f'Контрольный минимум энергии: {battery_energy_control_min_wh:.2f} Вт·ч', ln=True)
+    pdf.cell(0, 6, f'Диапазон энергии АКБ: {battery_energy_floor_wh:.2f}..{battery_energy_max_wh:.2f} Вт·ч', ln=True)
+    pdf.cell(0, 6, f'Суточная энергия нагрузки: {daily_actual:.2f} Вт·ч', ln=True)
+    pdf.cell(0, 6, f'Макс. дефицит после PV: {peak_pv_deficit_w:.2f} Вт', ln=True)
+    pdf.cell(0, 6, f'Макс. дефицит после АКБ: {peak_battery_deficit_w:.2f} Вт', ln=True)
+    pdf.cell(0, 6, f'Потребление из сети: {total_grid_energy_wh:.2f} Вт·ч', ln=True)
+    pdf.cell(0, 6, f'Суммарный заряд АКБ: {total_battery_charge_wh:.2f} Вт, разряд: {total_battery_discharge_wh:.2f} Вт', ln=True)
+    if len(full_range_filtered_hes_data) > 0:
+        start_e = full_range_filtered_hes_data.iloc[0]['battery_energy']
+        end_e = full_range_filtered_hes_data.iloc[-1]['battery_energy']
+        pdf.cell(0, 6, f'Начальный заряд: {start_e:.2f} Вт·ч, конечный: {end_e:.2f} Вт·ч', ln=True)
     
     # --- Графики (все) ---
     pdf.add_page()
