@@ -653,42 +653,155 @@ def run_simulation(params):
     # Создание PDF
     pdf = FPDF()
     pdf.add_page()
-    font_path = os.path.join(os.path.dirname(__file__), 'DejaVuSans.ttf')
-    pdf.add_font('DejaVu', '', font_path, uni=True)
+    pdf.add_font('DejaVu', '', FONT_PATH, uni=True)
     pdf.set_font('DejaVu', '', 12)
     pdf.cell(0, 10, 'Отчёт о моделировании солнечной электростанции', ln=True, align='C')
-    pdf.ln(5); pdf.set_font('DejaVu', '', 10)
-    pdf.cell(0, 8, f'Период: {start_str} – {end_str} | Широта {lat}°, долгота {lon}°', ln=True)
-    pdf.ln(3); pdf.set_font('DejaVu', '', 12); pdf.cell(0, 8, 'Параметры нагрузки', ln=True); pdf.set_font('DejaVu', '', 10)
+    pdf.ln(5)
+    pdf.set_font('DejaVu', '', 10)
+    pdf.cell(0, 8, f'Период: {DEFAULT_START} – {DEFAULT_END} | Широта {DEFAULT_LAT}°, долгота {DEFAULT_LON}°', ln=True)
+    
+    # --- Параметры нагрузки ---
+    pdf.ln(3)
+    pdf.set_font('DejaVu', '', 12)
+    pdf.cell(0, 8, 'Параметры нагрузки', ln=True)
+    pdf.set_font('DejaVu', '', 10)
     pdf.cell(0, 6, f'Максимальная нагрузка: {max_load_power_kw:.2f} кВт', ln=True)
     pdf.cell(0, 6, f'Рабочие часы: {max_load_work_hours:.2f} ч', ln=True)
-    pdf.cell(0, 6, f'Нагрузка за 1 час: макс {load_power_max_w:.2f} Вт, средняя {load_power_normal_w:.2f} Вт, мин {load_power_min_w:.2f} Вт', ln=True)
-    pdf.cell(0, 6, f'Суточная потребность: итого {daily_energy_wh:.2f} Вт·ч', ln=True)
-    pdf.ln(3); pdf.set_font('DejaVu', '', 12); pdf.cell(0, 8, 'Раскладка панелей', ln=True); pdf.set_font('DejaVu', '', 10)
-    pdf.cell(0, 6, f'Эффективная площадь панелей: {round(photoCellSquare,2)} м²', ln=True)
-    pdf.cell(0, 6, f'Ориентация: {best_layout.get("orientation","N/A")}', ln=True); pdf.cell(0, 6, f'Всего панелей: {best_layout.get("total_panels",0)}', ln=True)
-    pdf.ln(3); pdf.set_font('DejaVu', '', 12); pdf.cell(0, 8, 'Сбалансированное оборудование', ln=True); pdf.set_font('DejaVu', '', 10)
+    pdf.cell(0, 6, f'Нагрузка за 1 час: макс {load_power_max_w:.2f} Вт, '
+                    f'средняя {load_power_normal_w:.2f} Вт, минимальная {load_power_min_w:.2f} Вт', ln=True)
+    pdf.cell(0, 6, 'Суточная потребность:', ln=True)
+    pdf.cell(0, 6, f'мин. {daily_energy_min_wh:.2f} Вт·ч, '
+                    f'средняя {daily_energy_normal_wh:.2f} Вт·ч, макс. {daily_energy_max_wh:.2f} Вт·ч, '
+                    f'итого {daily_energy_wh:.2f} Вт·ч', ln=True)
+    
+    # --- Раскладка панелей ---
+    pdf.ln(3)
+    pdf.set_font('DejaVu', '', 12)
+    pdf.cell(0, 8, 'Раскладка панелей на крыше', ln=True)
+    pdf.set_font('DejaVu', '', 10)
+    pdf.cell(0, 6, f'Эффективная площадь панелей: {round(photoCellSquare, 2)} м²', ln=True)
+    if isinstance(best_layout, dict):
+        pdf.cell(0, 6, f'Ориентация: {best_layout.get("orientation", "N/A")}', ln=True)
+        pdf.cell(0, 6, f'Панелей в линии: {best_layout.get("cols_along_length", "N/A")}', ln=True)
+        pdf.cell(0, 6, f'Линий по ширине: {best_layout.get("rows_along_width", "N/A")}', ln=True)
+        pdf.cell(0, 6, f'Панелей в строке: {best_layout.get("panels_per_string", "N/A")}', ln=True)
+        pdf.cell(0, 6, f'Строк на линию: {best_layout.get("strings_per_row", "N/A")}', ln=True)
+        pdf.cell(0, 6, f'Всего строк: {best_layout.get("total_strings", "N/A")}', ln=True)
+        pdf.cell(0, 6, f'Всего панелей: {best_layout.get("total_panels", "N/A")}', ln=True)
+    
+    # --- Сбалансированное оборудование ---
+    pdf.ln(3)
+    pdf.set_font('DejaVu', '', 12)
+    pdf.cell(0, 8, 'Сбалансированное оборудование', ln=True)
+    pdf.set_font('DejaVu', '', 10)
     pdf.cell(0, 6, f'Инверторов: {n_inverters_required}', ln=True)
-    pdf.cell(0, 6, f'Панелей: {installed_panels}, в строке: {panels_per_string}, строк: {total_strings}', ln=True)
+    pdf.cell(0, 6, f'Панелей всего: {installed_panels}, в строке: {panels_per_string}, строк: {total_strings}', ln=True)
+    mppt_per_inv = inverter_mppt_count
+    strings_per_mppt_calc = math.ceil(total_strings / (n_inverters_required * mppt_per_inv)) if total_strings > 0 else 0
+    pdf.cell(0, 6, f'Строк на MPPT: {strings_per_mppt_calc}', ln=True)
     pdf.cell(0, 6, f'Напряжение батарейного банка: {battery_bank_voltage:.2f} В', ln=True)
-    pdf.cell(0, 6, f'Параллельных веток: {battery_parallel_count}, всего АКБ: {numberbattery_total}', ln=True)
+    pdf.cell(0, 6, f'Параллельных веток на инвертор: {battery_parallel_count_per_inv}, всего в системе: {battery_parallel_count}', ln=True)
+    pdf.cell(0, 6, f'Всего аккумуляторов: {numberbattery_total}', ln=True)
     pdf.cell(0, 6, f'Номинальная ёмкость: {nominal_capacity_battery:.2f} А·ч', ln=True)
-    pdf.ln(3); pdf.set_font('DejaVu', '', 12); pdf.cell(0, 8, 'Дефицит и баланс', ln=True); pdf.set_font('DejaVu', '', 10)
-    daily_actual = full_range_filtered_hes_data['load_energy_step_wh'].sum()
-    pdf.cell(0, 6, f'Суточная энергия нагрузки: {daily_actual:.2f} Вт·ч', ln=True)
-    pdf.cell(0, 6, f'Макс дефицит после АКБ: {full_range_filtered_hes_data["deficit_after_battery_w"].max():.2f} Вт', ln=True)
-    pdf.cell(0, 6, f'Потребление из сети: {full_range_filtered_hes_data["grid_energy_step_wh"].sum():.2f} Вт·ч', ln=True)
-
-    pdf.add_page(); pdf.set_font('DejaVu', '', 12); pdf.cell(0, 8, 'Графики', ln=True); pdf.ln(2)
-    graphs = [('solar_flux_clear.png','Солнечный поток (Clear Sky)'), ('cloudiness.png','Облачность'), ('temperature.png','Температура'),
-              ('solar_flux_cloudy.png','Солнечный поток с учётом облачности'), ('energy.png','Выработанная и необходимая энергия'),
-              ('battery_balance.png','Баланс энергии в АКБ'), ('charge_discharge.png','Заряд и разряд АКБ'),
-              ('grid_import.png','Потребление из сети'), ('deficit.png','Дефицит и покрытие АКБ')]
+    pdf.cell(0, 6, f'Доступная ёмкость: {batteryCapacityLim:.2f} А·ч', ln=True)
+    pdf.cell(0, 6, f'Фактическая ёмкость: {batteryCapacity:.2f} А·ч', ln=True)
+    pdf.cell(0, 6, f'Минимально допустимая ёмкость: {battery_DoD:.2f} А·ч', ln=True)
+    pdf.cell(0, 6, f'Энергия банка: {battery_energy_floor_wh:.2f}..{battery_energy_max_wh:.2f} Вт·ч', ln=True)
+    
+    # --- Проверка совместимости ---
+    pdf.ln(3)
+    pdf.set_font('DejaVu', '', 12)
+    pdf.cell(0, 8, 'Проверка совместимости', ln=True)
+    pdf.set_font('DejaVu', '', 10)
+    if 'equipment_ok' in globals():
+        pdf.cell(0, 6, f'ВЫВОД: {"связка рабочая" if equipment_ok else "связка НЕ ПРОХОДИТ проверку"}', ln=True)
+    
+    # --- Ориентация солнечных панелей ---
+    pdf.ln(3)
+    pdf.set_font('DejaVu', '', 12)
+    pdf.cell(0, 8, 'Ориентация солнечных панелей', ln=True)
+    pdf.set_font('DejaVu', '', 10)
+    pdf.cell(0, 6, f'Оптимальная ориентация для широты {DEFAULT_LAT}°:', ln=True)
+    pdf.cell(0, 6, f'  Угол наклона: {tilt_opt:.1f}°', ln=True)
+    pdf.cell(0, 6, f'  Азимут: {az_opt:.1f}° (0=север, 180=юг)', ln=True)
+    
+    # --- Дефицит и баланс ---
+    pdf.add_page()
+    pdf.set_font('DejaVu', '', 12)
+    pdf.cell(0, 8, 'Дефицит и баланс', ln=True)
+    pdf.set_font('DejaVu', '', 10)
+    if 'full_range_filtered_hes_data' in globals():
+        daily_actual = full_range_filtered_hes_data['load_energy_step_wh'].sum()
+        pdf.cell(0, 6, f'Количество панелей: {numberpanel}', ln=True)
+        pdf.cell(0, 6, f'Активная площадь массива: {pv_array_active_area_m2:.2f} м²', ln=True)
+        pdf.cell(0, 6, f'Активная площадь одной панели: {panel_active_area_m2:.3f} м²', ln=True)
+        pdf.cell(0, 6, f'Модулей АКБ в серии: {battery_series_count}, параллельных веток: {battery_parallel_count}, всего АКБ: {numberbattery}', ln=True)
+        pdf.cell(0, 6, f'Напряжение банка: {battery_bank_voltage:.2f} В', ln=True)
+        pdf.cell(0, 6, f'Доступная ёмкость: {batteryCapacityLim:.2f} А·ч, фактическая: {batteryCapacity:.2f} А·ч', ln=True)
+        pdf.cell(0, 6, f'Мин. допустимая (контроль): {battery_DoD:.2f} А·ч', ln=True)
+        pdf.cell(0, 6, f'Контрольный минимум энергии: {battery_energy_control_min_wh:.2f} Вт·ч', ln=True)
+        pdf.cell(0, 6, f'Диапазон энергии АКБ: {battery_energy_floor_wh:.2f}..{battery_energy_max_wh:.2f} Вт·ч', ln=True)
+        pdf.cell(0, 6, f'Суточная энергия нагрузки: {daily_actual:.2f} Вт·ч', ln=True)
+        if 'peak_pv_deficit_w' in globals():
+            pdf.cell(0, 6, f'Макс. дефицит после PV: {peak_pv_deficit_w:.2f} Вт', ln=True)
+            pdf.cell(0, 6, f'Макс. дефицит после АКБ: {peak_battery_deficit_w:.2f} Вт', ln=True)
+            pdf.cell(0, 6, f'Потребление из сети: {total_grid_energy_wh:.2f} Вт·ч', ln=True)
+            pdf.cell(0, 6, f'Суммарный заряд АКБ: {total_battery_charge_wh:.2f} Вт, разряд: {total_battery_discharge_wh:.2f} Вт', ln=True)
+            if len(full_range_filtered_hes_data) > 0:
+                start_e = full_range_filtered_hes_data.iloc[0]['battery_energy']
+                end_e = full_range_filtered_hes_data.iloc[-1]['battery_energy']
+                pdf.cell(0, 6, f'Начальный заряд: {start_e:.2f} Вт·ч, конечный: {end_e:.2f} Вт·ч', ln=True)
+    
+    # --- Графики (все) ---
+    pdf.add_page()
+    pdf.set_font('DejaVu', '', 12)
+    pdf.cell(0, 8, 'Графики', ln=True)
+    pdf.ln(2)
+    
+    graphs = [
+        ('solar_flux_clear.png', 'Солнечный поток (Clear Sky)'),
+        ('cloudiness.png', 'Облачность'),
+        ('temperature.png', 'Температура'),
+        ('solar_flux_cloudy.png', 'Солнечный поток с учётом облачности'),
+        ('energy.png', 'Выработанная и необходимая энергия'),
+        ('battery_balance.png', 'Баланс энергии в АКБ'),
+        ('charge_discharge.png', 'Заряд и разряд АКБ'),
+        ('grid_import.png', 'Потребление из сети'),
+        ('deficit.png', 'Дефицит и покрытие АКБ'),
+    ]
+    
     for fname, title in graphs:
         path = os.path.join(img_dir, fname)
         if os.path.exists(path):
-            pdf.set_font('DejaVu', '', 10); pdf.cell(0, 6, title, ln=True)
-            pdf.image(path, x=10, w=190); pdf.ln(4)
+            pdf.set_font('DejaVu', '', 10)
+            pdf.cell(0, 6, title, ln=True)
+            pdf.image(path, x=10, w=190)
+            pdf.ln(4)
+    
+    # --- Периоды дефицита (без АКБ) ---
+    if 'deficit_df' in globals() and not deficit_df.empty:
+        pdf.add_page()
+        pdf.set_font('DejaVu', '', 12)
+        pdf.cell(0, 8, 'Периоды дефицита энергии (без учёта АКБ)', ln=True)
+        pdf.set_font('DejaVu', '', 8)
+        pdf.multi_cell(0, 5, tabulate(deficit_df, headers='keys', tablefmt='grid', showindex=False))
+        pdf.ln(2)
+        pdf.set_font('DejaVu', '', 10)
+        if 'total_deficit_energy_wh' in globals():
+            pdf.cell(0, 6, f'Суммарный дефицит: {total_deficit_energy_wh:.2f} Вт·ч', ln=True)
+    
+    # --- Низкий заряд АКБ ---
+    if 'battery_control_min_periods' in globals():
+        pdf.ln(3)
+        pdf.cell(0, 6, f'Периодов с энергией АКБ <= {battery_energy_control_min_wh:.2f} Вт·ч: {len(battery_control_min_periods)}', ln=True)
+    
+    # --- Подключения к сети ---
+    if 'connect_df' in globals() and not connect_df.empty:
+        pdf.ln(3)
+        pdf.set_font('DejaVu', '', 12)
+        pdf.cell(0, 8, 'Подключения к электросети для зарядки АКБ', ln=True)
+        pdf.set_font('DejaVu', '', 8)
+        pdf.multi_cell(0, 5, tabulate(connect_df, headers='keys', tablefmt='grid', showindex=False))
 
     pdf_output_path = os.path.join(LOCAL_BASE_PATH, 'отчёт_моделирования.pdf')
     pdf.output(pdf_output_path)
