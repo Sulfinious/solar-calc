@@ -15,19 +15,17 @@ st.markdown("""
     .stButton > button { background-color: rgba(28,4,123,0.2); border: 2px solid #1c047b; border-radius: 30px; color: #1c047b; font-weight: bold; }
     .stButton > button:hover { background-color: rgba(28,4,123,0.4); }
     
-    /* Новый класс для информационного текста */
-    .info-box {
-        background-color: #0a1f5e;
-        color: white;
-        padding: 10px 20px;
-        border-radius: 15px;
-        text-align: center;
-        margin: 20px 0;
+    /* Переопределяем стили st.info */
+    div[data-testid="stAlert"] {
+        background-color: #0a1f5e !important;
+        border-left-color: #4a6fa5 !important;
+        color: #ffffff !important;
     }
-    .info-box h3 {
-        color: white;
-        margin: 0;
-        font-weight: normal;
+    div[data-testid="stAlert"] .stMarkdown {
+        color: #ffffff !important;
+    }
+    div[data-testid="stAlert"] svg {
+        fill: #ffffff !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -126,7 +124,7 @@ with st.sidebar:
 
 # ---------- ОСНОВНАЯ ОБЛАСТЬ ----------
 st.markdown("# 🌞 Моделирование солнечной электростанции")
-st.markdown('<div class="info-box"><h3>Заполните параметры в боковой панели, затем нажмите кнопку</h3></div>', unsafe_allow_html=True)
+st.markdown("### Заполните параметры в боковой панели, затем нажмите кнопку ниже")
 
 if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
     params = {
