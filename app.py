@@ -6,6 +6,7 @@ from datetime import datetime
 import os
 from streamlit_folium import st_folium
 import folium 
+from folium.plugins import Geocoder
 import leafmap.foliumap as leafmap
 
 from solar_calc import run_simulation
@@ -27,7 +28,11 @@ st.markdown("""
     div[data-testid="stAlert"] .stMarkdown {
         color: #1c047b !important;
     }
-    /* Иконку не перекрашиваем, просто оставляем как есть */
+    iframe {
+        border-radius: 15px;
+        border: none;
+        width: 100%;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -198,10 +203,19 @@ if not st.session_state.calculation_done and st.session_state.show_map:
     m = leafmap.Map(
         location=[st.session_state.lat, st.session_state.lon],
         zoom_start=8,
-        tiles="CartoDB Positron"
+        tiles="CartoDB Positron",
+        width='100%',   # ← важно: ширина в процентах
+        height=500
     )
     m.add_marker([st.session_state.lat, st.session_state.lon], tooltip="Текущая точка")
-    
+
+    geocoder = Geocoder(
+        position='topright',
+        collapsed=True,
+        placeholder='🔍 Поиск города...',
+        add_marker=True
+    )
+    m.add_child(geocoder)
     # Добавляем кнопку для возврата к исходному виду
     if st.button("🔄 Сбросить вид карты"):
         st.session_state.lat = 50.739537
