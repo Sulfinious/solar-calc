@@ -35,8 +35,9 @@ with st.sidebar:
     
     # 1. Местоположение и даты
     st.subheader("📍 Местоположение")
-    lat = st.number_input("Широта", value=50.739537, format="%.6f")
-    lon = st.number_input("Долгота", value=136.567232, format="%.6f")
+    # Поля ввода связаны с session_state через key
+    lat = st.number_input("Широта", value=st.session_state.lat, format="%.6f", key="lat")
+    lon = st.number_input("Долгота", value=st.session_state.lon, format="%.6f", key="lon")
     tz = st.selectbox("Часовой пояс", ["Asia/Vladivostok", "Europe/Moscow", "Asia/Yekaterinburg", "UTC"], index=0)
     
     st.subheader("📅 Период моделирования")
@@ -125,6 +126,8 @@ st.markdown("# 🌞 Моделирование солнечной электро
 st.markdown("### Заполните параметры в боковой панели, затем нажмите кнопку ниже")
 
 if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
+    # Скрываем карту
+    st.session_state.show_map = False
     params = {
         'lat': lat, 'lon': lon, 'timezone': tz,
         'start_date': start_str, 'end_date': end_str,
@@ -166,6 +169,22 @@ if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
             st.success("✅ Расчёт завершён!")
         except Exception as e:
             st.error(f"Ошибка при расчёте: {e}")
+
+# Карта (показываем, только если расчёт ещё не выполнен)
+if not st.session_state.calculation_done and st.session_state.show_map:
+    st.subheader("🗺️ Кликните по карте, чтобы выбрать местоположение")
+    m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=8)
+    folium.Marker([st.session_state.lat, st.session_state.lon], tooltip="Текущая точка").add_to(m)
+    map_data = st_folium(m, width=700, height=400)
+    
+    if map_data and map_data.get('last_clicked'):
+        clicked_lat = map_data['last_clicked']['lat']
+        clicked_lon = map_data['last_clicked']['lng']
+        # Обновляем координаты в session_state
+        st.session_state.lat = clicked_lat
+        st.session_state.lon = clicked_lon
+        st.rerun()   # перезагружаем страницу, чтобы обновить поля ввода
+    st.caption("💡 Кликните по карте – координаты автоматически подставятся в поля ввода")
 
 # ---------- ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ ----------
 if st.session_state.get('calculation_done', False):
