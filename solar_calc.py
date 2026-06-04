@@ -659,7 +659,7 @@ def run_simulation(params):
     pdf.cell(0, 10, 'Отчёт о моделировании солнечной электростанции', ln=True, align='C')
     pdf.ln(5)
     pdf.set_font('DejaVu', '', 10)
-    pdf.cell(0, 8, f'Период: {DEFAULT_START} – {DEFAULT_END} | Широта {DEFAULT_LAT}°, долгота {DEFAULT_LON}°', ln=True)
+    pdf.cell(0, 8, f'Период: {start_str} – {end_str} | Широта {lat}°, долгота {lon}°', ln=True)
     
     # --- Параметры нагрузки ---
     pdf.ln(3)
