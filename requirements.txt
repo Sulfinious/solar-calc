@@ -7,3 +7,4 @@ requests
 fpdf
 tabulate
 streamlit-folium
+folium
