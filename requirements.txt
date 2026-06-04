@@ -8,3 +8,5 @@ fpdf
 tabulate
 streamlit-folium>=0.23.0
 folium>=0.15.0
+leafmap
+geocoder
