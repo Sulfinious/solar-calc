@@ -653,7 +653,8 @@ def run_simulation(params):
     # Создание PDF
     pdf = FPDF()
     pdf.add_page()
-    pdf.add_font('DejaVu', '', FONT_PATH, uni=True)
+    font_path = os.path.join(os.path.dirname(__file__), 'DejaVuSans.ttf')
+    pdf.add_font('DejaVu', '', font_path, uni=True)
     pdf.set_font('DejaVu', '', 12)
     pdf.cell(0, 10, 'Отчёт о моделировании солнечной электростанции', ln=True, align='C')
     pdf.ln(5)
