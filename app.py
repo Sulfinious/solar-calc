@@ -40,6 +40,13 @@ if 'show_map' not in st.session_state:
 if 'calculation_done' not in st.session_state:
     st.session_state.calculation_done = False
     
+# ---------- СИНХРОНИЗАЦИЯ ВРЕМЕННЫХ КООРДИНАТ С ОСНОВНЫМИ ----------
+if 'map_lat' in st.session_state and 'map_lon' in st.session_state:
+    st.session_state.lat = st.session_state.map_lat
+    st.session_state.lon = st.session_state.map_lon
+    del st.session_state.map_lat
+    del st.session_state.map_lon
+    
 # ---------- БОКОВАЯ ПАНЕЛЬ (все параметры) ----------
 with st.sidebar:
     st.title("⚙️ Параметры системы")
@@ -48,8 +55,8 @@ with st.sidebar:
     # 1. Местоположение и даты
     st.subheader("📍 Местоположение")
     # Поля ввода связаны с session_state через key
-    lat = st.number_input("Широта", value=st.session_state.lat, format="%.6f", key="lat")
-    lon = st.number_input("Долгота", value=st.session_state.lon, format="%.6f", key="lon")
+    lat = st.number_input("Широта", value=st.session_state.lat, format="%.6f")
+    lon = st.number_input("Долгота", value=st.session_state.lon, format="%.6f")
     tz = st.selectbox("Часовой пояс", ["Asia/Vladivostok", "Europe/Moscow", "Asia/Yekaterinburg", "UTC"], index=0)
     
     st.subheader("📅 Период моделирования")
