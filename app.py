@@ -224,4 +224,4 @@ if st.session_state.get('calculation_done', False):
         use_container_width=True
     )
 else:
-    st.info("📌 Введите все параметры и нажмите «ЗАПУСТИТЬ РАСЧЁТ»")
+    st.markdown('<p style="color: #1c047b; background-color: transparent; margin: 10px 0;">📌 Введите все параметры и нажмите «ЗАПУСТИТЬ РАСЧЁТ»</p>', unsafe_allow_html=True)
