@@ -15,18 +15,16 @@ st.markdown("""
     .stButton > button { background-color: rgba(28,4,123,0.2); border: 2px solid #1c047b; border-radius: 30px; color: #1c047b; font-weight: bold; }
     .stButton > button:hover { background-color: rgba(28,4,123,0.4); }
     
-    /* Переопределяем стили st.info */
+    /* Убираем фон у st.info, текст делаем тёмно-синим, иконку не трогаем */
     div[data-testid="stAlert"] {
-        background-color: #0a1f5e !important;
-        border-left-color: #4a6fa5 !important;
-        color: #ffffff !important;
+        background-color: transparent !important;
+        border-left-color: #1c047b !important;  /* оставляем тонкую полоску (можно убрать, добавив border-left: none) */
+        color: #1c047b !important;
     }
     div[data-testid="stAlert"] .stMarkdown {
-        color: #ffffff !important;
+        color: #1c047b !important;
     }
-    div[data-testid="stAlert"] svg {
-        fill: #ffffff !important;
-    }
+    /* Иконку не перекрашиваем, просто оставляем как есть */
 </style>
 """, unsafe_allow_html=True)
 
