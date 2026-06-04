@@ -736,44 +736,47 @@ def run_simulation(params):
     conn3 = sqlite3.connect(cloudiness_db_file); df3 = pd.read_sql_query("SELECT * FROM Cloudiness WHERE datetime BETWEEN ? AND ?", conn3, params=(start_str, end_str)); conn3.close()
     df3['datetime'] = pd.to_datetime(df3['datetime'])
 
+    # График 1: Солнечная энергия (df1)
     def save_plot1():
-    fig, ax = plt.subplots(figsize=(10,4))
-    df_sorted = df1.sort_values('datetime').drop_duplicates(subset='datetime').reset_index(drop=True)
-    # Находим разрывы > 2 часов
-    time_diff = df_sorted['datetime'].diff().dt.total_seconds() / 3600
-    breaks = time_diff > 2
-    # Рисуем отдельные сегменты
-    start_idx = 0
-    for i, is_break in enumerate(breaks):
-        if is_break or i == len(df_sorted)-1:
-            segment = df_sorted.iloc[start_idx:i+1]
-            ax.plot(segment['datetime'], segment['solar_flux'], linestyle='-', marker='', linewidth=1)
-            start_idx = i
-    ax.set_xlabel('Дата'); ax.set_ylabel('Solar flux (W/m²)')
-    ax.set_title('Интенсивность солнечного потока (Clear Sky)')
-    ax.grid(True)
-    fig.tight_layout()
-    fig.savefig(os.path.join(img_dir, 'solar_flux_clear.png'))
-    plt.close(fig)
-    def save_plot2(): df2f = df2.copy(); df2f['clouds'] = pd.to_numeric(df2f['clouds'], errors='coerce'); df2f = df2f.dropna(subset=['clouds']); fig, ax = plt.subplots(figsize=(10,4)); ax.plot(df2f['datetime'], df2f['clouds']); ax.set_xlabel('Дата'); ax.set_ylabel('Облачность (%)'); ax.set_title('Уровень облачности'); ax.grid(True); fig.tight_layout(); fig.savefig(os.path.join(img_dir, 'cloudiness.png')); plt.close(fig)
-    def save_plot3(): df_temp = df2[['datetime','temperature']].copy(); df_temp['temperature'] = pd.to_numeric(df_temp['temperature'], errors='coerce'); df_temp = df_temp.dropna(); fig, ax = plt.subplots(figsize=(10,4)); ax.plot(df_temp['datetime'], df_temp['temperature']); ax.set_xlabel('Дата'); ax.set_ylabel('Температура (°C)'); ax.set_title('Температура'); ax.grid(True); fig.tight_layout(); fig.savefig(os.path.join(img_dir, 'temperature.png')); plt.close(fig)
+        fig, ax = plt.subplots(figsize=(10, 4))
+        ax.plot(df1['datetime'], df1['solar_flux'], linestyle='-')
+        ax.set_xlabel('Дата'); ax.set_ylabel('Solar flux (W/m²)')
+        ax.set_title('Интенсивность солнечного потока (Clear Sky)')
+        ax.grid(True)
+        fig.tight_layout(); fig.savefig(os.path.join(img_dir, 'solar_flux_clear.png')); plt.close(fig)
+    
+    # График 2: Облачность (df2)
+    def save_plot2():
+        df2f = df2.copy()
+        df2f['clouds'] = pd.to_numeric(df2f['clouds'], errors='coerce')
+        df2f = df2f.dropna(subset=['clouds'])
+        fig, ax = plt.subplots(figsize=(10, 4))
+        ax.plot(df2f['datetime'], df2f['clouds'], linestyle='-')
+        ax.set_xlabel('Дата'); ax.set_ylabel('Облачность (%)')
+        ax.set_title('Уровень облачности')
+        ax.grid(True)
+        fig.tight_layout(); fig.savefig(os.path.join(img_dir, 'cloudiness.png')); plt.close(fig)
+    
+    # График 3: Температура (df2)
+    def save_plot3():
+        df_temp = df2[['datetime', 'temperature']].copy()
+        df_temp['temperature'] = pd.to_numeric(df_temp['temperature'], errors='coerce')
+        df_temp = df_temp.dropna()
+        fig, ax = plt.subplots(figsize=(10, 4))
+        ax.plot(df_temp['datetime'], df_temp['temperature'], linestyle='-')
+        ax.set_xlabel('Дата'); ax.set_ylabel('Температура (°C)')
+        ax.set_title('Температура')
+        ax.grid(True)
+        fig.tight_layout(); fig.savefig(os.path.join(img_dir, 'temperature.png')); plt.close(fig)
+    
+    # График 4: Солнечная энергия с учётом облачности (df3)
     def save_plot4():
-    fig, ax = plt.subplots(figsize=(10,4))
-    df_sorted = df3.sort_values('datetime').drop_duplicates(subset='datetime').reset_index(drop=True)
-    time_diff = df_sorted['datetime'].diff().dt.total_seconds() / 3600
-    breaks = time_diff > 2
-    start_idx = 0
-    for i, is_break in enumerate(breaks):
-        if is_break or i == len(df_sorted)-1:
-            segment = df_sorted.iloc[start_idx:i+1]
-            ax.plot(segment['datetime'], segment['solar_flux'], linestyle='-', marker='', linewidth=1)
-            start_idx = i
-    ax.set_xlabel('Дата'); ax.set_ylabel('Solar flux (W/m²)')
-    ax.set_title('Интенсивность солнечного потока с учётом облачности')
-    ax.grid(True)
-    fig.tight_layout()
-    fig.savefig(os.path.join(img_dir, 'solar_flux_cloudy.png'))
-    plt.close(fig)
+        fig, ax = plt.subplots(figsize=(10, 4))
+        ax.plot(df3['datetime'], df3['solar_flux'], linestyle='-')
+        ax.set_xlabel('Дата'); ax.set_ylabel('Solar flux (W/m²)')
+        ax.set_title('Интенсивность солнечного потока с учётом облачности')
+        ax.grid(True)
+        fig.tight_layout(); fig.savefig(os.path.join(img_dir, 'solar_flux_cloudy.png')); plt.close(fig)
     save_plot1(); save_plot2(); save_plot3(); save_plot4()
     save_energy_graph(full_range_filtered_hes_data, os.path.join(img_dir, 'energy.png'))
     save_battery_balance_graph(full_range_filtered_hes_data, battery_energy_control_min_wh, os.path.join(img_dir, 'battery_balance.png'))
