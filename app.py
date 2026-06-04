@@ -6,6 +6,7 @@ from datetime import datetime
 import os
 from streamlit_folium import st_folium
 import folium 
+import leafmap.foliumap as leafmap
 
 from solar_calc import run_simulation
 
@@ -192,17 +193,30 @@ if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
 # Карта (показываем, только если расчёт ещё не выполнен)
 if not st.session_state.calculation_done and st.session_state.show_map:
     st.subheader("🗺️ Кликните по карте, чтобы выбрать местоположение")
-    m = folium.Map(location=[st.session_state.lat, st.session_state.lon], zoom_start=8)
-    folium.Marker([st.session_state.lat, st.session_state.lon], tooltip="Текущая точка").add_to(m)
+    
+    # Создаём карту с привлекательным и стабильным слоем CartoDB Positron
+    m = leafmap.Map(
+        location=[st.session_state.lat, st.session_state.lon],
+        zoom_start=8,
+        tiles="CartoDB Positron"
+    )
+    m.add_marker([st.session_state.lat, st.session_state.lon], tooltip="Текущая точка")
+    
+    # Добавляем кнопку для возврата к исходному виду
+    if st.button("🔄 Сбросить вид карты"):
+        st.session_state.lat = 50.739537
+        st.session_state.lon = 136.567232
+        st.rerun()
+
+    # Отображаем карту и получаем данные о клике
     map_data = st_folium(m, width=700, height=400)
     
     if map_data and map_data.get('last_clicked'):
         clicked_lat = map_data['last_clicked']['lat']
         clicked_lon = map_data['last_clicked']['lng']
-        # Обновляем координаты в session_state
-        st.session_state.lat = clicked_lat
-        st.session_state.lon = clicked_lon
-        st.rerun()   # перезагружаем страницу, чтобы обновить поля ввода
+        st.session_state.map_lat = clicked_lat
+        st.session_state.map_lon = clicked_lon
+        st.rerun()
     st.caption("💡 Кликните по карте – координаты автоматически подставятся в поля ввода")
 
 # ---------- ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ ----------
