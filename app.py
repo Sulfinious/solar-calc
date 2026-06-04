@@ -76,8 +76,8 @@ with st.sidebar:
     
     # 2. Нагрузка
     st.subheader("🔌 Параметры нагрузки")
-    max_load_power_kw = st.number_input("Суммарная энергия макс. режима (кВт·ч)", value=175.0)
-    max_load_work_hours = st.number_input("Длительность макс. режима (ч)", value=9.0)
+    max_load_power_kw = st.number_input("Максимальная нагрузка системы (кВт·ч)", value=175.0)
+    max_load_work_hours = st.number_input("Рабочие часы предприятия (ч)", value=9.0)
     st.markdown("**Часы нагрузки (0-23)**")
     c1, c2 = st.columns(2)
     with c1:
