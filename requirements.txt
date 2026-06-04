@@ -6,3 +6,4 @@ pytz
 requests
 fpdf
 tabulate
+streamlit-folium
