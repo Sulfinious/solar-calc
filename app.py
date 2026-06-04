@@ -14,6 +14,21 @@ st.markdown("""
     .stApp { background: linear-gradient(135deg, #2b1b4e 0%, #5b4c7a 30%, #e0c3b0 70%, #f9e4b7 100%); background-attachment: fixed; }
     .stButton > button { background-color: rgba(28,4,123,0.2); border: 2px solid #1c047b; border-radius: 30px; color: #1c047b; font-weight: bold; }
     .stButton > button:hover { background-color: rgba(28,4,123,0.4); }
+    
+    /* Новый класс для информационного текста */
+    .info-box {
+        background-color: #0a1f5e;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 15px;
+        text-align: center;
+        margin: 20px 0;
+    }
+    .info-box h3 {
+        color: white;
+        margin: 0;
+        font-weight: normal;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -57,17 +72,17 @@ with st.sidebar:
     photoEfficiency = st.number_input("КПД панели (0..1)", value=0.23, format="%.3f")
     k_photoEffTemp = st.number_input("Температурный коэффициент (%/°C)", value=-0.0029, format="%.4f")
     photoNOCT = st.number_input("NOCT (°C)", value=43.0)
-    panel_Vmp = st.number_input("Vmp (В)", value=45.40)
-    panel_Voc = st.number_input("Voc (В)", value=53.80)
-    panel_Imp = st.number_input("Imp (А)", value=10.14)
-    panel_Isc = st.number_input("Isc (А)", value=10.81)
+    panel_Vmp = st.number_input("Рабочее напр-е (В)", value=45.40)
+    panel_Voc = st.number_input("Напр-е холостого хода (В)", value=53.80)
+    panel_Imp = st.number_input("Ток к точке макс. мощности (А)", value=10.14)
+    panel_Isc = st.number_input("Ток короткого замыкания (А)", value=10.81)
     photoCellWidth = st.number_input("Ширина ячейки (м)", value=0.210)
     photoCellHigh = st.number_input("Высота ячейки (м)", value=0.210)
     photoCellNum = st.number_input("Количество ячеек", value=144, step=1)
     
     # 4. Аккумулятор
     st.subheader("🔋 Аккумулятор")
-    numberbattery_1 = st.number_input("Кол-во АКБ (в одной ветке)", value=1, step=1)
+    numberbattery_1 = st.number_input("Начальное кол-во АКБ", value=1, step=1)
     charge_voltage = st.number_input("Напряжение заряда (В)", value=57.6)
     battery_nominal_ah = st.number_input("Ёмкость одного АКБ (А·ч)", value=100.0)
     battery_voltage = st.number_input("Рабочее напряжение (В)", value=51.2)
@@ -102,6 +117,7 @@ with st.sidebar:
     reserve_factor_inverter = st.number_input("Запас мощности инвертора", value=1.2)
     
     # 7. Размеры крыши
+    st.subheader("🏠 Размер крыши")
     roof_length = st.number_input("Длина крыши (м)", value=30.0)
     roof_width = st.number_input("Ширина крыши (м)", value=30.0)
     
@@ -110,7 +126,7 @@ with st.sidebar:
 
 # ---------- ОСНОВНАЯ ОБЛАСТЬ ----------
 st.markdown("# 🌞 Моделирование солнечной электростанции")
-st.markdown("### Заполните параметры в боковой панели, затем нажмите кнопку")
+st.markdown('<div class="info-box"><h3>Заполните параметры в боковой панели, затем нажмите кнопку</h3></div>', unsafe_allow_html=True)
 
 if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
     params = {
