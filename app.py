@@ -28,10 +28,10 @@ st.markdown("""
     div[data-testid="stAlert"] .stMarkdown {
         color: #1c047b !important;
     }
-    iframe {
+    iframe[title="streamlit_folium.st_folium"] {
+        width: 100% !important;
         border-radius: 15px;
         border: none;
-        width: 100%;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -199,31 +199,29 @@ if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
 if not st.session_state.calculation_done and st.session_state.show_map:
     st.subheader("🗺️ Кликните по карте, чтобы выбрать местоположение")
     
-    # Создаём карту с привлекательным и стабильным слоем CartoDB Positron
-    m = leafmap.Map(
+    # Создаём карту с правильным тайлом (CartoDB без сетки)
+    m = folium.Map(
         location=[st.session_state.lat, st.session_state.lon],
         zoom_start=8,
-        tiles="CartoDB Positron",
-        width='100%',   # ← важно: ширина в процентах
-        height=500
+        tiles='https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        attr='CartoDB'
     )
-    m.add_marker([st.session_state.lat, st.session_state.lon], tooltip="Текущая точка")
-
-    geocoder = Geocoder(
-        position='topright',
-        collapsed=True,
-        placeholder='🔍 Поиск города...',
-        add_marker=True
-    )
-    m.add_child(geocoder)
-    # Добавляем кнопку для возврата к исходному виду
-    if st.button("🔄 Сбросить вид карты"):
-        st.session_state.lat = 50.739537
-        st.session_state.lon = 136.567232
-        st.rerun()
-
-    # Отображаем карту и получаем данные о клике
-    map_data = st_folium(m, width=700, height=400)
+    folium.Marker([st.session_state.lat, st.session_state.lon], tooltip="Текущая точка").add_to(m)
+    
+    # Поиск по городам
+    from folium.plugins import Geocoder
+    m.add_child(Geocoder(position='topright', collapsed=True, placeholder='🔍 Поиск города...'))
+    
+    # Отображаем карту
+    map_data = st_folium(m, width='100%', height=500)
+    
+    # Кнопка сброса вида
+    col_btn, _ = st.columns([1, 3])
+    with col_btn:
+        if st.button("🔄 Сбросить вид карты"):
+            st.session_state.lat = 50.739537
+            st.session_state.lon = 136.567232
+            st.rerun()
     
     if map_data and map_data.get('last_clicked'):
         clicked_lat = map_data['last_clicked']['lat']
@@ -231,6 +229,7 @@ if not st.session_state.calculation_done and st.session_state.show_map:
         st.session_state.map_lat = clicked_lat
         st.session_state.map_lon = clicked_lon
         st.rerun()
+    
     st.caption("💡 Кликните по карте – координаты автоматически подставятся в поля ввода")
 
 # ---------- ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ ----------
