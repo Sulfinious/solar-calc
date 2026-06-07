@@ -12,8 +12,21 @@ st.set_page_config(page_title="Солнечная электростанция",
 st.markdown("""
 <style>
     .stApp { background: linear-gradient(135deg, #2b1b4e 0%, #5b4c7a 30%, #e0c3b0 70%, #f9e4b7 100%); background-attachment: fixed; }
-    .stButton > button { background-color: rgba(28,4,123,0.2); border: 2px solid #1c047b; border-radius: 30px; color: #1c047b; font-weight: bold; }
-    .stButton > button:hover { background-color: rgba(28,4,123,0.4); }
+    
+    /* Стили для всех кнопок (бело-серая гамма) */
+    .stButton > button {
+        background-color: #f8f9fa;        /* светлый фон */
+        border: 2px solid #1c047b;       /* тёмно-синяя рамка */
+        border-radius: 30px;
+        color: #1c047b;                  /* тёмно-синий текст */
+        font-weight: bold;
+        transition: 0.2s;
+    }
+    .stButton > button:hover {
+        background-color: #e9ecef;        /* чуть темнее при наведении */
+        border-color: #0a0138;
+        color: #0a0138;
+    }
     
     div[data-testid="stAlert"] {
         background-color: transparent !important;
