@@ -4,12 +4,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 import os
+import json
 
 from solar_calc import run_simulation
 
 st.set_page_config(page_title="Солнечная электростанция", layout="wide")
 
-# ---------- CSS ----------
 st.markdown("""
 <style>
     .stApp { background: linear-gradient(135deg, #2b1b4e 0%, #5b4c7a 30%, #e0c3b0 70%, #f9e4b7 100%); background-attachment: fixed; }
@@ -26,19 +26,15 @@ st.markdown("""
         border-color: #0a0138;
         color: #0a0138;
     }
-    div[data-testid="stAlert"] {
-        background-color: transparent !important;
-        border-left-color: #1c047b !important;
-        color: #1c047b !important;
-    }
-    div[data-testid="stAlert"] .stMarkdown {
-        color: #1c047b !important;
-    }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- ФУНКЦИЯ ЯНДЕКС.КАРТЫ (с кнопкой) ----------
-def show_yandex_picker(lat, lon, zoom=10, height=500):
+# ---------- ФУНКЦИЯ ДЛЯ ВСТРОЕННОЙ ЯНДЕКС.КАРТЫ (с отправкой координат) ----------
+def yandex_map_autoupdate(lat, lon, zoom=10, height=500):
+    """
+    Отображает карту, при клике/перетаскивании маркера координаты
+    автоматически отправляются в Python (без перезагрузки страницы).
+    """
     map_html = f"""
     <!DOCTYPE html>
     <html>
@@ -46,30 +42,13 @@ def show_yandex_picker(lat, lon, zoom=10, height=500):
         <script src="https://api-maps.yandex.ru/2.1/?apikey=6a8e96f6-7181-4031-aa17-e187f6cc0843&lang=ru_RU"></script>
         <style>
             html, body, #map {{ width: 100%; height: {height}px; margin: 0; padding: 0; }}
-            .btn {{
-                display: block;
-                width: 100%;
-                padding: 10px;
-                margin-top: 10px;
-                background-color: #f8f9fa;
-                color: #1c047b;
-                font-size: 16px;
-                border: 2px solid #1c047b;
-                border-radius: 30px;
-                cursor: pointer;
-                font-weight: bold;
-            }}
-            .btn:hover {{
-                background-color: #e9ecef;
-            }}
         </style>
     </head>
     <body>
         <div id="map"></div>
-        <button class="btn" id="applyCoords">✅ Применить координаты в приложении</button>
         <script>
-            var currentCoords = {{ lat: {lat}, lon: {lon} }};
             var map, placemark;
+            var currentCoords = {{ lat: {lat}, lon: {lon} }};
 
             function init() {{
                 map = new ymaps.Map("map", {{
@@ -77,38 +56,44 @@ def show_yandex_picker(lat, lon, zoom=10, height=500):
                     zoom: {zoom},
                     controls: ["zoomControl", "fullscreenControl"]
                 }});
+
                 placemark = new ymaps.Placemark([{lat}, {lon}], {{
                     hintContent: "Выбранная точка"
                 }}, {{ draggable: true }});
                 map.geoObjects.add(placemark);
 
-                placemark.events.add("dragend", function (e) {{
+                // Функция отправки координат в Streamlit
+                function sendCoords() {{
                     var coords = placemark.geometry.getCoordinates();
-                    currentCoords = {{ lat: coords[0], lon: coords[1] }};
+                    var data = {{ lat: coords[0], lon: coords[1] }};
+                    Streamlit.setComponentValue(JSON.stringify(data));
+                }}
+
+                placemark.events.add("dragend", function () {{
+                    sendCoords();
                 }});
                 map.events.add("click", function (e) {{
                     var coords = e.get("coords");
-                    currentCoords = {{ lat: coords[0], lon: coords[1] }};
                     placemark.geometry.setCoordinates(coords);
+                    sendCoords();
                 }});
-            }}
 
-            document.getElementById("applyCoords").addEventListener("click", function() {{
-                var newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname +
-                            "?lat=" + currentCoords.lat.toFixed(6) + "&lon=" + currentCoords.lon.toFixed(6);
-                window.location.href = newUrl;
-            }});
+                // Отправляем начальные координаты для синхронизации
+                sendCoords();
+            }}
 
             ymaps.ready(init);
         </script>
     </body>
     </html>
     """
-    st.components.v1.html(map_html, height=height + 70)
+    # Используем компонент с обратной связью
+    from streamlit.components.v1 import html
+    return html(map_html, height=height + 10)
 
 # ---------- ИНИЦИАЛИЗАЦИЯ СОСТОЯНИЯ ----------
 if 'lat' not in st.session_state:
-    st.session_state.lat = 50.739537
+    st.session_state.lat = 50.739537   # Холдоми
 if 'lon' not in st.session_state:
     st.session_state.lon = 136.567232
 if 'calculation_done' not in st.session_state:
@@ -116,31 +101,19 @@ if 'calculation_done' not in st.session_state:
 if 'show_map' not in st.session_state:
     st.session_state.show_map = True
 
-# ---------- ОБРАБОТКА ПАРАМЕТРОВ URL ----------
-query_params = st.query_params
-if 'lat' in query_params and 'lon' in query_params:
-    try:
-        new_lat = float(query_params['lat'])
-        new_lon = float(query_params['lon'])
-        st.session_state.lat = new_lat
-        st.session_state.lon = new_lon
-        # После обновления координат очищаем параметры и УБЕЖДАЕМСЯ, что карта остаётся
-        st.query_params.clear()
-        st.session_state.show_map = True  # <--- гарантируем, что карта не пропадёт
-    except:
-        pass
-
 # ---------- БОКОВАЯ ПАНЕЛЬ ----------
 with st.sidebar:
     st.title("⚙️ Параметры системы")
     st.markdown("---")
     
     st.subheader("📍 Местоположение")
+    # Поля ввода, связанные с session_state (при изменении вручную обновляют session_state)
     lat = st.number_input("Широта", value=st.session_state.lat, format="%.6f")
     lon = st.number_input("Долгота", value=st.session_state.lon, format="%.6f")
-    # Синхронизируем ручной ввод с session_state
-    st.session_state.lat = lat
-    st.session_state.lon = lon
+    if lat != st.session_state.lat or lon != st.session_state.lon:
+        st.session_state.lat = lat
+        st.session_state.lon = lon
+        st.rerun()   # обновляем карту при ручном вводе
     
     if st.button("🌄 Сбросить координаты"):
         st.session_state.lat = 50.739537
@@ -301,15 +274,23 @@ if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
         except Exception as e:
             st.error(f"Ошибка при расчёте: {e}")
 
-# ---------- КАРТА ----------
+# ---------- КАРТА (показывается до расчёта, обновляется без перезагрузки) ----------
 if not st.session_state.calculation_done and st.session_state.show_map:
-    st.subheader("🗺️ Яндекс.Карта – выберите точку")
-    show_yandex_picker(
-        lat=st.session_state.lat,
-        lon=st.session_state.lon,
-        zoom=10
-    )
-    st.caption("💡 Передвиньте маркер или кликните по карте, затем нажмите кнопку «Применить координаты»")
+    st.subheader("🗺️ Яндекс.Карта – перемещайте маркер или кликайте для выбора точки")
+    # Вызываем компонент; он возвращает строку JSON при каждом изменении координат
+    map_result = yandex_map_autoupdate(st.session_state.lat, st.session_state.lon)
+    if map_result:
+        try:
+            data = json.loads(map_result)
+            new_lat = data['lat']
+            new_lon = data['lon']
+            if abs(new_lat - st.session_state.lat) > 1e-8 or abs(new_lon - st.session_state.lon) > 1e-8:
+                st.session_state.lat = new_lat
+                st.session_state.lon = new_lon
+                st.rerun()   # обновляем поля ввода и карту (новый центр)
+        except:
+            pass
+    st.caption("💡 Координаты обновляются автоматически при перемещении маркера или клике")
 
 # ---------- ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ ----------
 if st.session_state.get('calculation_done', False):
@@ -368,4 +349,4 @@ if st.session_state.get('calculation_done', False):
         use_container_width=True
     )
 else:
-    st.markdown('<p style="color: #1c047b; background-color: transparent; margin: 10px 0;">📌 Введите все параметры и нажмите «ЗАПУСТИТЬ РАСЧЁТ»</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: #1c047b; background-color: transparent;">📌 Введите все параметры и нажмите «ЗАПУСТИТЬ РАСЧЁТ»</p>', unsafe_allow_html=True)
