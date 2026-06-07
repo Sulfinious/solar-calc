@@ -9,11 +9,10 @@ from solar_calc import run_simulation
 
 st.set_page_config(page_title="Солнечная электростанция", layout="wide")
 
-# ---------- CSS (бело-серые кнопки, прозрачные уведомления) ----------
+# ---------- CSS ----------
 st.markdown("""
 <style>
     .stApp { background: linear-gradient(135deg, #2b1b4e 0%, #5b4c7a 30%, #e0c3b0 70%, #f9e4b7 100%); background-attachment: fixed; }
-    
     .stButton > button {
         background-color: #f8f9fa;
         border: 2px solid #1c047b;
@@ -27,7 +26,6 @@ st.markdown("""
         border-color: #0a0138;
         color: #0a0138;
     }
-    
     div[data-testid="stAlert"] {
         background-color: transparent !important;
         border-left-color: #1c047b !important;
@@ -39,12 +37,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- ФУНКЦИЯ ДЛЯ ОТОБРАЖЕНИЯ ЯНДЕКС.КАРТЫ ----------
+# ---------- ФУНКЦИЯ ЯНДЕКС.КАРТЫ (с кнопкой) ----------
 def show_yandex_picker(lat, lon, zoom=10, height=500):
-    """
-    Показывает Яндекс.Карту с перетаскиваемым маркером и кнопкой 'Применить координаты'.
-    При нажатии кнопки страница перезагружается с новыми координатами в URL.
-    """
     map_html = f"""
     <!DOCTYPE html>
     <html>
@@ -75,8 +69,7 @@ def show_yandex_picker(lat, lon, zoom=10, height=500):
         <button class="btn" id="applyCoords">✅ Применить координаты в приложении</button>
         <script>
             var currentCoords = {{ lat: {lat}, lon: {lon} }};
-            var map = null;
-            var placemark = null;
+            var map, placemark;
 
             function init() {{
                 map = new ymaps.Map("map", {{
@@ -84,20 +77,15 @@ def show_yandex_picker(lat, lon, zoom=10, height=500):
                     zoom: {zoom},
                     controls: ["zoomControl", "fullscreenControl"]
                 }});
-
                 placemark = new ymaps.Placemark([{lat}, {lon}], {{
                     hintContent: "Выбранная точка"
-                }}, {{
-                    draggable: true
-                }});
-
+                }}, {{ draggable: true }});
                 map.geoObjects.add(placemark);
 
                 placemark.events.add("dragend", function (e) {{
                     var coords = placemark.geometry.getCoordinates();
                     currentCoords = {{ lat: coords[0], lon: coords[1] }};
                 }});
-
                 map.events.add("click", function (e) {{
                     var coords = e.get("coords");
                     currentCoords = {{ lat: coords[0], lon: coords[1] }};
@@ -118,28 +106,27 @@ def show_yandex_picker(lat, lon, zoom=10, height=500):
     """
     st.components.v1.html(map_html, height=height + 70)
 
-# ---------- ИНИЦИАЛИЗАЦИЯ ПЕРЕМЕННЫХ ----------
+# ---------- ИНИЦИАЛИЗАЦИЯ СОСТОЯНИЯ ----------
 if 'lat' not in st.session_state:
     st.session_state.lat = 50.739537
 if 'lon' not in st.session_state:
     st.session_state.lon = 136.567232
-if 'show_map' not in st.session_state:
-    st.session_state.show_map = True
 if 'calculation_done' not in st.session_state:
     st.session_state.calculation_done = False
+if 'show_map' not in st.session_state:
+    st.session_state.show_map = True
 
-# ---------- ОБРАБОТКА ПАРАМЕТРОВ ИЗ URL (КООРДИНАТЫ С КАРТЫ) ----------
+# ---------- ОБРАБОТКА ПАРАМЕТРОВ URL ----------
 query_params = st.query_params
 if 'lat' in query_params and 'lon' in query_params:
     try:
         new_lat = float(query_params['lat'])
         new_lon = float(query_params['lon'])
-        # Обновляем session_state, если координаты изменились
-        if abs(new_lat - st.session_state.lat) > 1e-8 or abs(new_lon - st.session_state.lon) > 1e-8:
-            st.session_state.lat = new_lat
-            st.session_state.lon = new_lon
-        # Очищаем параметры, чтобы не применялись повторно
+        st.session_state.lat = new_lat
+        st.session_state.lon = new_lon
+        # После обновления координат очищаем параметры и УБЕЖДАЕМСЯ, что карта остаётся
         st.query_params.clear()
+        st.session_state.show_map = True  # <--- гарантируем, что карта не пропадёт
     except:
         pass
 
@@ -151,6 +138,9 @@ with st.sidebar:
     st.subheader("📍 Местоположение")
     lat = st.number_input("Широта", value=st.session_state.lat, format="%.6f")
     lon = st.number_input("Долгота", value=st.session_state.lon, format="%.6f")
+    # Синхронизируем ручной ввод с session_state
+    st.session_state.lat = lat
+    st.session_state.lon = lon
     
     if st.button("🌄 Сбросить координаты"):
         st.session_state.lat = 50.739537
@@ -311,7 +301,7 @@ if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
         except Exception as e:
             st.error(f"Ошибка при расчёте: {e}")
 
-# ---------- КАРТА (показываем только до расчёта) ----------
+# ---------- КАРТА ----------
 if not st.session_state.calculation_done and st.session_state.show_map:
     st.subheader("🗺️ Яндекс.Карта – выберите точку")
     show_yandex_picker(
