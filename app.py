@@ -29,12 +29,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- ФУНКЦИЯ ДЛЯ ВСТРОЕННОЙ ЯНДЕКС.КАРТЫ (с отправкой координат) ----------
+# ---------- КОМПОНЕНТ КАРТЫ (отправляет координаты без перезагрузки) ----------
 def yandex_map_autoupdate(lat, lon, zoom=10, height=500):
-    """
-    Отображает карту, при клике/перетаскивании маркера координаты
-    автоматически отправляются в Python (без перезагрузки страницы).
-    """
     map_html = f"""
     <!DOCTYPE html>
     <html>
@@ -56,44 +52,36 @@ def yandex_map_autoupdate(lat, lon, zoom=10, height=500):
                     zoom: {zoom},
                     controls: ["zoomControl", "fullscreenControl"]
                 }});
-
                 placemark = new ymaps.Placemark([{lat}, {lon}], {{
                     hintContent: "Выбранная точка"
                 }}, {{ draggable: true }});
                 map.geoObjects.add(placemark);
 
-                // Функция отправки координат в Streamlit
                 function sendCoords() {{
                     var coords = placemark.geometry.getCoordinates();
                     var data = {{ lat: coords[0], lon: coords[1] }};
                     Streamlit.setComponentValue(JSON.stringify(data));
                 }}
 
-                placemark.events.add("dragend", function () {{
-                    sendCoords();
-                }});
+                placemark.events.add("dragend", function () {{ sendCoords(); }});
                 map.events.add("click", function (e) {{
                     var coords = e.get("coords");
                     placemark.geometry.setCoordinates(coords);
                     sendCoords();
                 }});
-
-                // Отправляем начальные координаты для синхронизации
                 sendCoords();
             }}
-
             ymaps.ready(init);
         </script>
     </body>
     </html>
     """
-    # Используем компонент с обратной связью
     from streamlit.components.v1 import html
     return html(map_html, height=height + 10)
 
-# ---------- ИНИЦИАЛИЗАЦИЯ СОСТОЯНИЯ ----------
+# ---------- ИНИЦИАЛИЗАЦИЯ ----------
 if 'lat' not in st.session_state:
-    st.session_state.lat = 50.739537   # Холдоми
+    st.session_state.lat = 50.739537
 if 'lon' not in st.session_state:
     st.session_state.lon = 136.567232
 if 'calculation_done' not in st.session_state:
@@ -101,19 +89,21 @@ if 'calculation_done' not in st.session_state:
 if 'show_map' not in st.session_state:
     st.session_state.show_map = True
 
+# ---------- ФУНКЦИИ ОБНОВЛЕНИЯ ПОЛЕЙ ВВОДА ----------
+def update_lat():
+    st.session_state.lat = st.session_state._lat_widget
+def update_lon():
+    st.session_state.lon = st.session_state._lon_widget
+
 # ---------- БОКОВАЯ ПАНЕЛЬ ----------
 with st.sidebar:
     st.title("⚙️ Параметры системы")
     st.markdown("---")
     
     st.subheader("📍 Местоположение")
-    # Поля ввода, связанные с session_state (при изменении вручную обновляют session_state)
-    lat = st.number_input("Широта", value=st.session_state.lat, format="%.6f")
-    lon = st.number_input("Долгота", value=st.session_state.lon, format="%.6f")
-    if lat != st.session_state.lat or lon != st.session_state.lon:
-        st.session_state.lat = lat
-        st.session_state.lon = lon
-        st.rerun()   # обновляем карту при ручном вводе
+    # Поля ввода: привязаны к session_state через отдельные ключи и on_change
+    st.number_input("Широта", key="_lat_widget", value=st.session_state.lat, format="%.6f", on_change=update_lat)
+    st.number_input("Долгота", key="_lon_widget", value=st.session_state.lon, format="%.6f", on_change=update_lon)
     
     if st.button("🌄 Сбросить координаты"):
         st.session_state.lat = 50.739537
@@ -274,25 +264,25 @@ if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
         except Exception as e:
             st.error(f"Ошибка при расчёте: {e}")
 
-# ---------- КАРТА (показывается до расчёта, обновляется без перезагрузки) ----------
+# ---------- КАРТА ----------
 if not st.session_state.calculation_done and st.session_state.show_map:
     st.subheader("🗺️ Яндекс.Карта – перемещайте маркер или кликайте для выбора точки")
-    # Вызываем компонент; он возвращает строку JSON при каждом изменении координат
     map_result = yandex_map_autoupdate(st.session_state.lat, st.session_state.lon)
     if map_result:
         try:
             data = json.loads(map_result)
             new_lat = data['lat']
             new_lon = data['lon']
-            if abs(new_lat - st.session_state.lat) > 1e-8 or abs(new_lon - st.session_state.lon) > 1e-8:
+            if (abs(new_lat - st.session_state.lat) > 1e-8 or 
+                abs(new_lon - st.session_state.lon) > 1e-8):
                 st.session_state.lat = new_lat
                 st.session_state.lon = new_lon
-                st.rerun()   # обновляем поля ввода и карту (новый центр)
+                st.rerun()
         except:
             pass
     st.caption("💡 Координаты обновляются автоматически при перемещении маркера или клике")
 
-# ---------- ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ ----------
+# ---------- РЕЗУЛЬТАТЫ ----------
 if st.session_state.get('calculation_done', False):
     df = st.session_state['df_results']
     st.subheader("📊 Результаты моделирования")
