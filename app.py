@@ -4,10 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 import os
-from streamlit_folium import st_folium
-import folium 
-from folium.plugins import Geocoder
-import leafmap.foliumap as leafmap
 
 from solar_calc import run_simulation
 
@@ -19,22 +15,92 @@ st.markdown("""
     .stButton > button { background-color: rgba(28,4,123,0.2); border: 2px solid #1c047b; border-radius: 30px; color: #1c047b; font-weight: bold; }
     .stButton > button:hover { background-color: rgba(28,4,123,0.4); }
     
-    /* Убираем фон у st.info, текст делаем тёмно-синим, иконку не трогаем */
+    /* Убираем фон у st.info, текст делаем тёмно-синим */
     div[data-testid="stAlert"] {
         background-color: transparent !important;
-        border-left-color: #1c047b !important;  /* оставляем тонкую полоску (можно убрать, добавив border-left: none) */
+        border-left-color: #1c047b !important;
         color: #1c047b !important;
     }
     div[data-testid="stAlert"] .stMarkdown {
         color: #1c047b !important;
     }
-    iframe[title="streamlit_folium.st_folium"] {
-        width: 100% !important;
-        border-radius: 15px;
-        border: none;
-    }
 </style>
 """, unsafe_allow_html=True)
+
+# ---------- ФУНКЦИЯ ЯНДЕКС.КАРТЫ ----------
+def yandex_map_picker(lat, lon, zoom=10, map_height=500):
+    """
+    Отображает Яндекс.Карту с перетаскиваемым маркером.
+    При нажатии кнопки координаты передаются через query params.
+    """
+    map_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <script src="https://api-maps.yandex.ru/2.1/?apikey=6a8e96f6-7181-4031-aa17-e187f6cc0843&lang=ru_RU"></script>
+        <style>
+            html, body, #map {{ width: 100%; height: {map_height}px; margin: 0; padding: 0; }}
+            .btn {{
+                display: block;
+                width: 100%;
+                padding: 10px;
+                margin-top: 10px;
+                background-color: #1c047b;
+                color: white;
+                font-size: 16px;
+                border: none;
+                border-radius: 10px;
+                cursor: pointer;
+            }}
+        </style>
+    </head>
+    <body>
+        <div id="map"></div>
+        <button class="btn" id="applyCoords">✅ Применить координаты в приложении</button>
+        <script>
+            var currentCoords = {{ lat: {lat}, lon: {lon} }};
+            var map = null;
+            var placemark = null;
+
+            function init() {{
+                map = new ymaps.Map("map", {{
+                    center: [{lat}, {lon}],
+                    zoom: {zoom},
+                    controls: ["zoomControl", "fullscreenControl"]
+                }});
+
+                placemark = new ymaps.Placemark([{lat}, {lon}], {{
+                    hintContent: "Выбранная точка"
+                }}, {{
+                    draggable: true
+                }});
+
+                map.geoObjects.add(placemark);
+
+                placemark.events.add("dragend", function (e) {{
+                    var coords = placemark.geometry.getCoordinates();
+                    currentCoords = {{ lat: coords[0], lon: coords[1] }};
+                }});
+
+                map.events.add("click", function (e) {{
+                    var coords = e.get("coords");
+                    currentCoords = {{ lat: coords[0], lon: coords[1] }};
+                    placemark.geometry.setCoordinates(coords);
+                }});
+            }}
+
+            document.getElementById("applyCoords").addEventListener("click", function() {{
+                var newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname +
+                            "?lat=" + currentCoords.lat.toFixed(6) + "&lon=" + currentCoords.lon.toFixed(6);
+                window.location.href = newUrl;
+            }});
+
+            ymaps.ready(init);
+        </script>
+    </body>
+    </html>
+    """
+    st.components.v1.html(map_html, height=map_height + 60)
 
 # ---------- ИНИЦИАЛИЗАЦИЯ СОСТОЯНИЯ ----------
 if 'lat' not in st.session_state:
@@ -45,14 +111,22 @@ if 'show_map' not in st.session_state:
     st.session_state.show_map = True
 if 'calculation_done' not in st.session_state:
     st.session_state.calculation_done = False
-    
-# ---------- СИНХРОНИЗАЦИЯ ВРЕМЕННЫХ КООРДИНАТ С ОСНОВНЫМИ ----------
-if 'map_lat' in st.session_state and 'map_lon' in st.session_state:
-    st.session_state.lat = st.session_state.map_lat
-    st.session_state.lon = st.session_state.map_lon
-    del st.session_state.map_lat
-    del st.session_state.map_lon
-    
+
+# ---------- ПОЛУЧЕНИЕ КООРДИНАТ ИЗ URL (ПОСЛЕ НАЖАТИЯ КНОПКИ НА КАРТЕ) ----------
+query_params = st.query_params
+if 'lat' in query_params and 'lon' in query_params:
+    try:
+        new_lat = float(query_params['lat'])
+        new_lon = float(query_params['lon'])
+        # Обновляем session_state
+        st.session_state.lat = new_lat
+        st.session_state.lon = new_lon
+        # Очищаем параметры, чтобы не применялись повторно
+        st.query_params.clear()
+        st.rerun()
+    except:
+        pass
+
 # ---------- БОКОВАЯ ПАНЕЛЬ (все параметры) ----------
 with st.sidebar:
     st.title("⚙️ Параметры системы")
@@ -60,7 +134,6 @@ with st.sidebar:
     
     # 1. Местоположение и даты
     st.subheader("📍 Местоположение")
-    # Поля ввода связаны с session_state через key
     lat = st.number_input("Широта", value=st.session_state.lat, format="%.6f")
     lon = st.number_input("Долгота", value=st.session_state.lon, format="%.6f")
     tz = st.selectbox("Часовой пояс", ["Asia/Vladivostok", "Europe/Moscow", "Asia/Yekaterinburg", "UTC"], index=0)
@@ -151,7 +224,6 @@ st.markdown("# 🌞 Моделирование солнечной электро
 st.markdown("### Заполните параметры в боковой панели, затем нажмите кнопку ниже")
 
 if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
-    # Скрываем карту
     st.session_state.show_map = False
     params = {
         'lat': lat, 'lon': lon, 'timezone': tz,
@@ -195,42 +267,15 @@ if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
         except Exception as e:
             st.error(f"Ошибка при расчёте: {e}")
 
-# Карта (показываем, только если расчёт ещё не выполнен)
+# ---------- КАРТА (показываем только до расчёта) ----------
 if not st.session_state.calculation_done and st.session_state.show_map:
-    st.subheader("🗺️ Кликните по карте, чтобы выбрать местоположение")
-    
-    # Создаём карту с правильным тайлом (CartoDB без сетки)
-    m = folium.Map(
-        location=[st.session_state.lat, st.session_state.lon],
-        zoom_start=8,
-        tiles='https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-        attr='CartoDB'
+    st.subheader("🗺️ Яндекс.Карта – выберите точку")
+    yandex_map_picker(
+        lat=st.session_state.lat,
+        lon=st.session_state.lon,
+        zoom=10
     )
-    folium.Marker([st.session_state.lat, st.session_state.lon], tooltip="Текущая точка").add_to(m)
-    
-    # Поиск по городам
-    from folium.plugins import Geocoder
-    m.add_child(Geocoder(position='topright', collapsed=True, placeholder='🔍 Поиск города...'))
-    
-    # Отображаем карту
-    map_data = st_folium(m, width='100%', height=500)
-    
-    # Кнопка сброса вида
-    col_btn, _ = st.columns([1, 3])
-    with col_btn:
-        if st.button("🔄 Сбросить вид карты"):
-            st.session_state.lat = 50.739537
-            st.session_state.lon = 136.567232
-            st.rerun()
-    
-    if map_data and map_data.get('last_clicked'):
-        clicked_lat = map_data['last_clicked']['lat']
-        clicked_lon = map_data['last_clicked']['lng']
-        st.session_state.map_lat = clicked_lat
-        st.session_state.map_lon = clicked_lon
-        st.rerun()
-    
-    st.caption("💡 Кликните по карте – координаты автоматически подставятся в поля ввода")
+    st.caption("💡 Передвиньте маркер или кликните по карте, затем нажмите кнопку «Применить координаты»")
 
 # ---------- ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ ----------
 if st.session_state.get('calculation_done', False):
