@@ -15,7 +15,6 @@ st.markdown("""
     .stButton > button { background-color: rgba(28,4,123,0.2); border: 2px solid #1c047b; border-radius: 30px; color: #1c047b; font-weight: bold; }
     .stButton > button:hover { background-color: rgba(28,4,123,0.4); }
     
-    /* Убираем фон у st.info, текст делаем тёмно-синим */
     div[data-testid="stAlert"] {
         background-color: transparent !important;
         border-left-color: #1c047b !important;
@@ -104,7 +103,7 @@ def yandex_map_picker(lat, lon, zoom=10, map_height=500):
 
 # ---------- ИНИЦИАЛИЗАЦИЯ СОСТОЯНИЯ ----------
 if 'lat' not in st.session_state:
-    st.session_state.lat = 50.739537
+    st.session_state.lat = 50.739537   # Холдоми (пример)
 if 'lon' not in st.session_state:
     st.session_state.lon = 136.567232
 if 'show_map' not in st.session_state:
@@ -123,7 +122,7 @@ if 'lat' in query_params and 'lon' in query_params:
         st.session_state.lon = new_lon
         # Очищаем параметры, чтобы не применялись повторно
         st.query_params.clear()
-        st.rerun()
+        # НЕ вызываем st.rerun() – страница уже перезагружена
     except:
         pass
 
@@ -136,6 +135,13 @@ with st.sidebar:
     st.subheader("📍 Местоположение")
     lat = st.number_input("Широта", value=st.session_state.lat, format="%.6f")
     lon = st.number_input("Долгота", value=st.session_state.lon, format="%.6f")
+    
+    # Кнопка сброса координат на Холдоми
+    if st.button("🌄 Сбросить координаты"):
+        st.session_state.lat = 50.739537
+        st.session_state.lon = 136.567232
+        st.rerun()
+    
     tz = st.selectbox("Часовой пояс", ["Asia/Vladivostok", "Europe/Moscow", "Asia/Yekaterinburg", "UTC"], index=0)
     
     st.subheader("📅 Период моделирования")
@@ -224,6 +230,7 @@ st.markdown("# 🌞 Моделирование солнечной электро
 st.markdown("### Заполните параметры в боковой панели, затем нажмите кнопку ниже")
 
 if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
+    # Скрываем карту и выполняем расчёт
     st.session_state.show_map = False
     params = {
         'lat': lat, 'lon': lon, 'timezone': tz,
