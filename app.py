@@ -29,7 +29,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- КОМПОНЕНТ КАРТЫ (отправляет координаты без перезагрузки) ----------
+# ---------- КОМПОНЕНТ КАРТЫ ----------
 def yandex_map_autoupdate(lat, lon, zoom=10, height=500):
     map_html = f"""
     <!DOCTYPE html>
@@ -79,7 +79,7 @@ def yandex_map_autoupdate(lat, lon, zoom=10, height=500):
     from streamlit.components.v1 import html
     return html(map_html, height=height + 10)
 
-# ---------- ИНИЦИАЛИЗАЦИЯ ----------
+# ---------- ИНИЦИАЛИЗАЦИЯ СОСТОЯНИЯ ----------
 if 'lat' not in st.session_state:
     st.session_state.lat = 50.739537
 if 'lon' not in st.session_state:
@@ -89,11 +89,11 @@ if 'calculation_done' not in st.session_state:
 if 'show_map' not in st.session_state:
     st.session_state.show_map = True
 
-# ---------- ФУНКЦИИ ОБНОВЛЕНИЯ ПОЛЕЙ ВВОДА ----------
-def update_lat():
-    st.session_state.lat = st.session_state._lat_widget
-def update_lon():
-    st.session_state.lon = st.session_state._lon_widget
+# ---------- ФУНКЦИИ ДЛЯ РУЧНОГО ОБНОВЛЕНИЯ ПОЛЕЙ ----------
+def set_lat():
+    st.session_state.lat = st.session_state._lat_manual
+def set_lon():
+    st.session_state.lon = st.session_state._lon_manual
 
 # ---------- БОКОВАЯ ПАНЕЛЬ ----------
 with st.sidebar:
@@ -101,9 +101,9 @@ with st.sidebar:
     st.markdown("---")
     
     st.subheader("📍 Местоположение")
-    # Поля ввода: привязаны к session_state через отдельные ключи и on_change
-    st.number_input("Широта", key="_lat_widget", value=st.session_state.lat, format="%.6f", on_change=update_lat)
-    st.number_input("Долгота", key="_lon_widget", value=st.session_state.lon, format="%.6f", on_change=update_lon)
+    # Поля для ручного ввода: значения берутся из session_state, при изменении вызывают on_change
+    st.number_input("Широта", key="_lat_manual", value=st.session_state.lat, format="%.6f", on_change=set_lat)
+    st.number_input("Долгота", key="_lon_manual", value=st.session_state.lon, format="%.6f", on_change=set_lon)
     
     if st.button("🌄 Сбросить координаты"):
         st.session_state.lat = 50.739537
