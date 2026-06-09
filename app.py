@@ -232,11 +232,11 @@ if not st.session_state.calculation_done and st.session_state.show_map:
     st.subheader("🗺️ Кликните по карте, чтобы выбрать местоположение")
     
      m = folium.Map(
-        location=[st.session_state.lat, st.session_state.lon],
-        zoom_start=8,
-        tiles='https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-        attr='CartoDB'
-    )
+         location=[st.session_state.lat, st.session_state.lon],
+         zoom_start=8,
+         tiles='https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+         attr='CartoDB'
+     )
     
     folium.Marker([st.session_state.lat, st.session_state.lon], tooltip="Текущая точка").add_to(m)
     
