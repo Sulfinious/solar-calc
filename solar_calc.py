@@ -239,7 +239,7 @@ def calculate_solar_flux_and_save_to_db(file_name, latitude, longitude, photoEff
     if 'clouds' not in df.columns: df['clouds'] = 0.0
     df['clouds'] = pd.to_numeric(df['clouds'], errors='coerce').fillna(0.0)
     df['clouds'] = df['clouds'].clip(0, 100)
-    solar_constant = 1361.0; tau = 0.3
+    solar_constant = 1361.0; tau = 0.2
     solar_flux_rows = []
     for idx, row in df.iterrows():
         dt = row['datetime']
