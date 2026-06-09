@@ -246,9 +246,6 @@ if not st.session_state.calculation_done and st.session_state.show_map:
         Element('<style>.leaflet-bottom { display: none !important; }</style>')
     )
     
-    # Поиск по городам (исправлена опечатка)
-    m.add_child(Geocoder(position='topright', collapsed=True, placeholder='🔍 Поиск города...'))
-    
     # Отображаем карту
     map_data = st_folium(m, width='100%', height=500)
     
