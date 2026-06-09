@@ -287,7 +287,7 @@ if not st.session_state.calculation_done and st.session_state.show_map:
     
     # Отображаем текущие координаты (с карты или из сессии)
     st.markdown(f'<div class="coord-text">📍 Текущие координаты: широта {st.session_state.lat:.6f}, долгота {st.session_state.lon:.6f}</div>', unsafe_allow_html=True)
-    st.caption("💡 Кликните по карте или перетащите маркер – координаты автоматически обновятся в полях ввода.")
+    st.caption("💡 Кликните по карте – координаты автоматически обновятся в полях ввода.")
 
 # ---------- РЕЗУЛЬТАТЫ ----------
 if st.session_state.get('calculation_done', False):
