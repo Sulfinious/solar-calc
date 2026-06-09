@@ -242,8 +242,9 @@ if not st.session_state.calculation_done and st.session_state.show_map:
     m.add_child(Geocoder(position='topright', collapsed=True, placeholder='🔍 Поиск города...'))
     
     # --- Скрываем всё, что отображается в нижней части карты ---
+    # Скрываем только контрол атрибуции
     m.get_root().header.add_child(
-        Element('<style>.leaflet-bottom { display: none !important; }</style>')
+        Element('<style>.leaflet-control-attribution { display: none !important; }</style>')
     )
     
     # Отображаем карту
