@@ -4,7 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 import os
-import json
+from streamlit_folium import st_folium
+import folium 
+from folium.plugins import Geocoder
 
 from solar_calc import run_simulation
 
@@ -12,7 +14,10 @@ st.set_page_config(page_title="Солнечная электростанция",
 
 st.markdown("""
 <style>
-    .stApp { background: linear-gradient(135deg, #2b1b4e 0%, #5b4c7a 30%, #e0c3b0 70%, #f9e4b7 100%); background-attachment: fixed; }
+    .stApp {
+        background: linear-gradient(135deg, #2b1b4e 0%, #5b4c7a 30%, #e0c3b0 70%, #f9e4b7 100%);
+        background-attachment: fixed;
+    }
     .stButton > button {
         background-color: #f8f9fa;
         border: 2px solid #1c047b;
@@ -26,74 +31,29 @@ st.markdown("""
         border-color: #0a0138;
         color: #0a0138;
     }
+    .coord-text {
+        background-color: rgba(255,255,255,0.7);
+        padding: 8px 15px;
+        border-radius: 15px;
+        font-family: monospace;
+        font-size: 16px;
+        text-align: center;
+        margin-top: 10px;
+        color: #1c047b;
+        font-weight: bold;
+    }
 </style>
 """, unsafe_allow_html=True)
-
-# ---------- КОМПОНЕНТ КАРТЫ ----------
-def yandex_map_autoupdate(lat, lon, zoom=10, height=500):
-    map_html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <script src="https://api-maps.yandex.ru/2.1/?apikey=6a8e96f6-7181-4031-aa17-e187f6cc0843&lang=ru_RU"></script>
-        <style>
-            html, body, #map {{ width: 100%; height: {height}px; margin: 0; padding: 0; }}
-        </style>
-    </head>
-    <body>
-        <div id="map"></div>
-        <script>
-            var map, placemark;
-            var currentCoords = {{ lat: {lat}, lon: {lon} }};
-
-            function init() {{
-                map = new ymaps.Map("map", {{
-                    center: [{lat}, {lon}],
-                    zoom: {zoom},
-                    controls: ["zoomControl", "fullscreenControl"]
-                }});
-                placemark = new ymaps.Placemark([{lat}, {lon}], {{
-                    hintContent: "Выбранная точка"
-                }}, {{ draggable: true }});
-                map.geoObjects.add(placemark);
-
-                function sendCoords() {{
-                    var coords = placemark.geometry.getCoordinates();
-                    var data = {{ lat: coords[0], lon: coords[1] }};
-                    Streamlit.setComponentValue(JSON.stringify(data));
-                }}
-
-                placemark.events.add("dragend", function () {{ sendCoords(); }});
-                map.events.add("click", function (e) {{
-                    var coords = e.get("coords");
-                    placemark.geometry.setCoordinates(coords);
-                    sendCoords();
-                }});
-                sendCoords();
-            }}
-            ymaps.ready(init);
-        </script>
-    </body>
-    </html>
-    """
-    from streamlit.components.v1 import html
-    return html(map_html, height=height + 10)
 
 # ---------- ИНИЦИАЛИЗАЦИЯ СОСТОЯНИЯ ----------
 if 'lat' not in st.session_state:
     st.session_state.lat = 50.739537
 if 'lon' not in st.session_state:
     st.session_state.lon = 136.567232
-if 'calculation_done' not in st.session_state:
-    st.session_state.calculation_done = False
 if 'show_map' not in st.session_state:
     st.session_state.show_map = True
-
-# ---------- ФУНКЦИИ ДЛЯ РУЧНОГО ОБНОВЛЕНИЯ ПОЛЕЙ ----------
-def set_lat():
-    st.session_state.lat = st.session_state._lat_manual
-def set_lon():
-    st.session_state.lon = st.session_state._lon_manual
+if 'calculation_done' not in st.session_state:
+    st.session_state.calculation_done = False
 
 # ---------- БОКОВАЯ ПАНЕЛЬ ----------
 with st.sidebar:
@@ -101,9 +61,12 @@ with st.sidebar:
     st.markdown("---")
     
     st.subheader("📍 Местоположение")
-    # Поля для ручного ввода: значения берутся из session_state, при изменении вызывают on_change
-    st.number_input("Широта", key="_lat_manual", value=st.session_state.lat, format="%.6f", on_change=set_lat)
-    st.number_input("Долгота", key="_lon_manual", value=st.session_state.lon, format="%.6f", on_change=set_lon)
+    lat_input = st.number_input("Широта", value=st.session_state.lat, format="%.6f")
+    lon_input = st.number_input("Долгота", value=st.session_state.lon, format="%.6f")
+    if lat_input != st.session_state.lat or lon_input != st.session_state.lon:
+        st.session_state.lat = lat_input
+        st.session_state.lon = lon_input
+        st.rerun()
     
     if st.button("🌄 Сбросить координаты"):
         st.session_state.lat = 50.739537
@@ -187,11 +150,11 @@ with st.sidebar:
     
     # 7. Размеры крыши
     st.subheader("🏠 Размер крыши")
-    roof_length = st.number_input("Длина крыши (м)", value=25.0)
-    roof_width = st.number_input("Ширина крыши (м)", value=25.0)
+    roof_length = st.number_input("Длина крыши (м)", value=30.0)
+    roof_width = st.number_input("Ширина крыши (м)", value=30.0)
     
     # Начальный SOC
-    initial_battery_soc = st.slider("Начальный заряд АКБ (%)", 0, 100, 50) / 100.0
+    initial_battery_soc = st.slider("Начальный заряд АКБ (%)", 0, 100, 60) / 100.0
 
 # ---------- ОСНОВНАЯ ОБЛАСТЬ ----------
 st.markdown("# 🌞 Моделирование солнечной электростанции")
@@ -264,23 +227,53 @@ if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
         except Exception as e:
             st.error(f"Ошибка при расчёте: {e}")
 
-# ---------- КАРТА ----------
+# ---------- КАРТА (показываем только до расчёта) ----------
 if not st.session_state.calculation_done and st.session_state.show_map:
-    st.subheader("🗺️ Яндекс.Карта – перемещайте маркер или кликайте для выбора точки")
-    map_result = yandex_map_autoupdate(st.session_state.lat, st.session_state.lon)
-    if map_result:
-        try:
-            data = json.loads(map_result)
-            new_lat = data['lat']
-            new_lon = data['lon']
-            if (abs(new_lat - st.session_state.lat) > 1e-8 or 
-                abs(new_lon - st.session_state.lon) > 1e-8):
-                st.session_state.lat = new_lat
-                st.session_state.lon = new_lon
-                st.rerun()
-        except:
-            pass
-    st.caption("💡 Координаты обновляются автоматически при перемещении маркера или клике")
+    st.subheader("🗺️ Кликните по карте, чтобы выбрать местоположение")
+    
+    m = folium.Map(
+        location=[st.session_state.lat, st.session_state.lon],
+        zoom_start=8,
+        tiles='https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        attr='CartoDB'
+    )
+    folium.Marker([st.session_state.lat, st.session_state.lon], tooltip="Текущая точка").add_to(m)
+    
+    # Поиск по городам (исправлена опечатка)
+    m.add_child(Geocoder(position='topright', collapsed=True, placeholder='🔍 Поиск города...'))
+    
+    # Отображаем карту
+    map_data = st_folium(m, width='100%', height=500)
+    
+    # Кнопка сброса вида
+    col_btn, _ = st.columns([1, 3])
+    with col_btn:
+        if st.button("🔄 Сбросить вид карты"):
+            st.session_state.lat = 50.739537
+            st.session_state.lon = 136.567232
+            st.rerun()
+    
+    # Обработка клика или перетаскивания маркера
+    if map_data and map_data.get('last_clicked'):
+        clicked_lat = map_data['last_clicked']['lat']
+        clicked_lon = map_data['last_clicked']['lng']
+        # Обновляем только если координаты изменились
+        if abs(clicked_lat - st.session_state.lat) > 1e-8 or abs(clicked_lon - st.session_state.lon) > 1e-8:
+            st.session_state.lat = clicked_lat
+            st.session_state.lon = clicked_lon
+            st.rerun()
+    elif map_data and map_data.get('last_object_clicked') and map_data['last_object_clicked'].get('latlng'):
+        # Если перетащили маркер
+        marker_lat = map_data['last_object_clicked']['latlng'][0]
+        marker_lon = map_data['last_object_clicked']['latlng'][1]
+        if abs(marker_lat - st.session_state.lat) > 1e-8 or abs(marker_lon - st.session_state.lon) > 1e-8:
+            st.session_state.lat = marker_lat
+            st.session_state.lon = marker_lon
+            st.rerun()
+    
+    # Отображаем текущие координаты (с карты или из сессии)
+    st.markdown(f'<div class="coord-text">📍 Текущие координаты: широта {st.session_state.lat:.6f}, долгота {st.session_state.lon:.6f}</div>', unsafe_allow_html=True)
+    st.caption("💡 Кликните по карте или перетащите маркер – координаты автоматически обновятся в полях ввода.")
 
 # ---------- РЕЗУЛЬТАТЫ ----------
 if st.session_state.get('calculation_done', False):
