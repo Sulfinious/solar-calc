@@ -4,9 +4,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 import os
-import json
+from streamlit_folium import st_folium
+import folium 
+from folium.plugins import Geocoder
+import leafmap.foliumap as leafmap
 
 from solar_calc import run_simulation
+
 
 st.set_page_config(page_title="Солнечная электростанция", layout="wide")
 
