@@ -43,72 +43,23 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- КОМПОНЕНТ ЯНДЕКС.КАРТЫ (с возвратом координат) ----------
-def yandex_map_with_coords(lat, lon, zoom=10, height=500):
-    """
-    Отображает карту, при клике/перетаскивании маркера координаты
-    отправляются в Python и отображаются под картой.
-    """
-    map_html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <script src="https://api-maps.yandex.ru/2.1/?apikey=6a8e96f6-7181-4031-aa17-e187f6cc0843&lang=ru_RU"></script>
-        <style>
-            html, body, #map {{ width: 100%; height: {height}px; margin: 0; padding: 0; }}
-        </style>
-    </head>
-    <body>
-        <div id="map"></div>
-        <script>
-            var map, placemark;
-            var currentCoords = {{ lat: {lat}, lon: {lon} }};
-
-            function init() {{
-                map = new ymaps.Map("map", {{
-                    center: [{lat}, {lon}],
-                    zoom: {zoom},
-                    controls: ["zoomControl", "fullscreenControl"]
-                }});
-                placemark = new ymaps.Placemark([{lat}, {lon}], {{
-                    hintContent: "Выбранная точка"
-                }}, {{ draggable: true }});
-                map.geoObjects.add(placemark);
-
-                function sendCoords() {{
-                    var coords = placemark.geometry.getCoordinates();
-                    var data = {{ lat: coords[0], lon: coords[1] }};
-                    Streamlit.setComponentValue(JSON.stringify(data));
-                }}
-
-                placemark.events.add("dragend", function () {{ sendCoords(); }});
-                map.events.add("click", function (e) {{
-                    var coords = e.get("coords");
-                    placemark.geometry.setCoordinates(coords);
-                    sendCoords();
-                }});
-                sendCoords();
-            }}
-            ymaps.ready(init);
-        </script>
-    </body>
-    </html>
-    """
-    from streamlit.components.v1 import html
-    return html(map_html, height=height + 10)
-
-# ---------- ИНИЦИАЛИЗАЦИЯ ----------
+# ---------- ИНИЦИАЛИЗАЦИЯ СОСТОЯНИЯ ----------
 if 'lat' not in st.session_state:
     st.session_state.lat = 50.739537
 if 'lon' not in st.session_state:
     st.session_state.lon = 136.567232
-if 'calculation_done' not in st.session_state:
-    st.session_state.calculation_done = False
 if 'show_map' not in st.session_state:
     st.session_state.show_map = True
-if 'map_coords' not in st.session_state:
-    st.session_state.map_coords = None   # будет хранить последние координаты с карты
-
+if 'calculation_done' not in st.session_state:
+    st.session_state.calculation_done = False
+    
+# ---------- СИНХРОНИЗАЦИЯ ВРЕМЕННЫХ КООРДИНАТ С ОСНОВНЫМИ ----------
+if 'map_lat' in st.session_state and 'map_lon' in st.session_state:
+    st.session_state.lat = st.session_state.map_lat
+    st.session_state.lon = st.session_state.map_lon
+    del st.session_state.map_lat
+    del st.session_state.map_lon
+    
 # ---------- БОКОВАЯ ПАНЕЛЬ ----------
 with st.sidebar:
     st.title("⚙️ Параметры системы")
@@ -284,29 +235,43 @@ if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
         except Exception as e:
             st.error(f"Ошибка при расчёте: {e}")
 
-# ---------- КАРТА ----------
+# Карта (показываем, только если расчёт ещё не выполнен)
 if not st.session_state.calculation_done and st.session_state.show_map:
-    st.subheader("🗺️ Выберите точку на карте (перетаскивайте маркер или кликайте)")
-    # Получаем координаты с карты
-    map_result = yandex_map_with_coords(st.session_state.lat, st.session_state.lon)
-    if map_result:
-        try:
-            data = json.loads(map_result)
-            new_lat = data['lat']
-            new_lon = data['lon']
-            # Просто сохраняем в session_state для отображения под картой, но не меняем поля ввода автоматически
-            st.session_state.map_coords = (new_lat, new_lon)
-        except:
-            pass
-    # Показываем текущие координаты с карты (если есть)
-    if st.session_state.map_coords:
-        lat_disp, lon_disp = st.session_state.map_coords
-        st.markdown(f'<div class="coord-text">📍 Выбранные координаты: широта {lat_disp:.6f}, долгота {lon_disp:.6f}</div>', unsafe_allow_html=True)
-        st.info("💡 **Скопируйте эти координаты** и вставьте их в поля ввода в боковой панели (Широта / Долгота).")
-    else:
-        st.markdown('<div class="coord-text">🔍 Кликните по карте или перетащите маркер, чтобы увидеть координаты</div>', unsafe_allow_html=True)
-    st.caption("Карта остаётся доступной до нажатия кнопки «Запустить расчёт».")
+    st.subheader("🗺️ Кликните по карте, чтобы выбрать местоположение")
+    
+    # Создаём карту с правильным тайлом
+    m = folium.Map(
+        location=[st.session_state.lat, st.session_state.lon],
+        zoom_start=8,
+        tiles='https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        attr='CartoDB'
+    )
+    folium.Marker([st.session_state.lat, st.session_state.lon], tooltip="Текущая точка").add_to(m)
+    
+    # Поиск по городам
+    from folium.plugins import Geocoder
+    m.add_child(Geocoder(position='topright', collapsed=True, placehold-er='🔍 Поиск города...'))
+    
+    # Карта
+    map_data = st_folium(m, width='100%', height=500)
+    
+    # Кнопка сброса вида
+    col_btn, _ = st.columns([1, 3])
+    with col_btn:
+        if st.button("🔄 Сбросить вид карты"):
+            st.session_state.lat = 50.739537
+            st.session_state.lon = 136.567232
+            st.rerun()
+    
+    if map_data and map_data.get('last_clicked'):
+        clicked_lat = map_data['last_clicked']['lat']
+        clicked_lon = map_data['last_clicked']['lng']
+        st.session_state.map_lat = clicked_lat
+        st.session_state.map_lon = clicked_lon
+        st.rerun()
 
+    st.caption("💡 Кликните по карте – координаты автоматически подставятся в поля ввода")
+    
 # ---------- РЕЗУЛЬТАТЫ (после расчёта) ----------
 if st.session_state.get('calculation_done', False):
     df = st.session_state['df_results']
