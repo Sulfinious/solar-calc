@@ -80,9 +80,9 @@ with st.sidebar:
     st.subheader("📅 Период моделирования")
     col1, col2 = st.columns(2)
     with col1:
-        start_date = st.date_input("Дата начала", datetime(2026, 1, 1))
+        start_date = st.date_input("Дата начала", datetime(2026, 2, 1))
     with col2:
-        end_date = st.date_input("Дата окончания", datetime(2026, 1, 7))
+        end_date = st.date_input("Дата окончания", datetime(2026, 2, 7))
     start_str = start_date.strftime("%Y-%m-%dT00:00")
     end_str = end_date.strftime("%Y-%m-%dT23:59")
     
