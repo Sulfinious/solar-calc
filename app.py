@@ -162,8 +162,117 @@ with st.sidebar:
 st.markdown("# 🌞 Моделирование солнечной электростанции")
 st.markdown("### Заполните параметры в боковой панели, затем нажмите кнопку ниже")
 
+def validate_inputs(params_dict):
+    """Возвращает список строк с ошибками. Если пуст – валидация пройдена."""
+    errors = []
+    
+    # 1. Даты
+    start = datetime.strptime(params_dict['start_date'][:10], "%Y-%m-%d")
+    end   = datetime.strptime(params_dict['end_date'][:10], "%Y-%m-%d")
+    if start > end:
+        errors.append("❌ Дата начала не может быть позже даты окончания. Исправьте период моделирования.")
+    
+    # 2. Координаты и пояс (проверка попадания в допустимые диапазоны)
+    if not (-90 <= params_dict['lat'] <= 90):
+        errors.append("❌ Широта должна быть от -90 до 90.")
+    if not (-180 <= params_dict['lon'] <= 180):
+        errors.append("❌ Долгота должна быть от -180 до 180.")
+    
+    # 3. Положительные значения для мощностей, напряжений, токов
+    positive_fields = {
+        'max_load_power_kw': 'Макс. нагрузка (кВт)',
+        'max_load_work_hours': 'Рабочие часы',
+        'battery_nominal_ah': 'Ёмкость АКБ (А·ч)',
+        'battery_voltage': 'Рабочее напряжение АКБ (В)',
+        'charge_voltage': 'Напряжение заряда (В)',
+        'inverter_nominal_power': 'Номинальная мощность инвертора (кВт)',
+        'inverter_battery_voltage_nominal': 'Ном. напряжение АКБ инвертора (В)',
+        'inverter_battery_voltage_min': 'Мин. напряжение АКБ инвертора (В)',
+        'inverter_battery_voltage_max': 'Макс. напряжение АКБ инвертора (В)',
+        'inverter_max_battery_charge_current': 'Макс. ток заряда (А)',
+        'inverter_max_battery_discharge_current': 'Макс. ток разряда (А)',
+        'inverter_mppt_min': 'Мин. MPPT напряжение (В)',
+        'inverter_mppt_max': 'Макс. MPPT напряжение (В)',
+        'inverter_pv_max_voltage': 'Макс. входное PV (В)',
+        'inverter_pv_start_voltage': 'Пусковое PV (В)',
+        'inverter_pv_nominal_power': 'Ном. входная PV мощность (Вт)',
+        'inverter_pv_max_current_per_mppt': 'Макс. ток на MPPT (А)',
+        'inverter_pv_max_isc_per_mppt': 'Макс. Isc на MPPT (А)',
+        'numberbattery_1': 'Начальное кол-во АКБ',
+        'photoNOCT': 'NOCT (°C)',
+        'roof_length': 'Длина крыши (м)',
+        'roof_width': 'Ширина крыши (м)',
+        'panel_Vmp': 'Рабочее напряжение панели (В)',
+        'panel_Voc': 'Напр. холостого хода (В)',
+        'panel_Imp': 'Ток в точке макс. мощности (А)',
+        'panel_Isc': 'Ток КЗ (А)',
+        'photoCellWidth': 'Ширина ячейки (м)',
+        'photoCellHigh': 'Высота ячейки (м)',
+        'photoCellNum': 'Количество ячеек',
+    }
+    for field, label in positive_fields.items():
+        if params_dict[field] <= 0:
+            errors.append(f"❌ {label} должно быть положительным числом.")
+    
+    # 4. Коэффициенты (0..1)
+    ratio_fields = {
+        'photoEfficiency': 'КПД панели',
+        'k_min_SoC': 'Мин. SoC',
+        'k_mode_battery': 'Коэфф. доступной ёмкости',
+        'inverter_efficiency': 'КПД инвертора',
+        'k_cable_pv': 'Потери DC кабель',
+        'k_cable_batt': 'Потери кабель АКБ',
+        'k_cable_ac': 'Потери AC сторона',
+        'reserve_factor_inverter': 'Запас мощности инвертора',
+    }
+    for field, label in ratio_fields.items():
+        val = params_dict[field]
+        if not (0 < val <= 1):   # reserve_factor обычно >1, но он тоже ограничен 0..1 в виджете? В исходном коде нет min/max, но по логике запас не меньше 1. Валидацию поправим отдельно.
+            if field == 'reserve_factor_inverter':
+                if val < 1:
+                    errors.append(f"❌ Запас мощности инвертора должен быть ≥1.")
+            else:
+                errors.append(f"❌ {label} должно быть в диапазоне (0, 1].")
+    
+    # 5. Температурный коэффициент (отрицательный, обычно от -0.01 до 0)
+    if not (-1 <= params_dict['k_photoEffTemp'] <= 0):
+        errors.append("❌ Температурный коэффициент должен быть отрицательным (например, -0.0029).")
+    
+    # 6. Ток заряда АКБ (kCharge) – положительный, обычно до 1
+    if not (0 < params_dict['kCharge'] <= 1):
+        errors.append("❌ Макс. ток заряда (от ёмкости) должен быть в (0, 1].")
+    
+    # 7. Логические пары «min < max»
+    if params_dict['inverter_battery_voltage_min'] >= params_dict['inverter_battery_voltage_max']:
+        errors.append("❌ Мин. напряжение АКБ инвертора должно быть меньше максимального.")
+    if params_dict['inverter_mppt_min'] >= params_dict['inverter_mppt_max']:
+        errors.append("❌ Мин. MPPT напряжение должно быть меньше максимального.")
+    if params_dict['inverter_pv_start_voltage'] >= params_dict['inverter_pv_max_voltage']:
+        errors.append("❌ Пусковое PV напряжение должно быть меньше максимального входного PV.")
+    
+    # Номинальное напряжение АКБ инвертора должно лежать между min и max
+    nom = params_dict['inverter_battery_voltage_nominal']
+    vmin = params_dict['inverter_battery_voltage_min']
+    vmax = params_dict['inverter_battery_voltage_max']
+    if not (vmin < nom < vmax):
+        errors.append("❌ Ном. напряжение АКБ инвертора должно быть между минимальным и максимальным.")
+    
+    # 8. Интервалы часов нагрузки (начало <= конец)
+    if params_dict['load_min_start_hour'] > params_dict['load_min_end_hour']:
+        errors.append("❌ Начало мин. нагрузки не может быть позже её конца.")
+    if params_dict['load_max_start_hour'] > params_dict['load_max_end_hour']:
+        errors.append("❌ Начало макс. нагрузки не может быть позже её конца.")
+    if params_dict['load_normal_start_hour'] > params_dict['load_normal_end_hour']:
+        errors.append("❌ Начало обычной нагрузки не может быть позже её конца.")
+    
+    # Дополнительно: если максимальная нагрузка вне рабочих часов? (опционально)
+    # Можно проверить, что часы макс. нагрузки укладываются в рабочие часы, но это не обязательно.
+    
+    return errors
+
+
 if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
-    st.session_state.show_map = False
+    # Сначала собираем параметры
     params = {
         'lat': st.session_state.lat,
         'lon': st.session_state.lon,
@@ -219,6 +328,20 @@ if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
         'roof_width': roof_width,
         'initial_battery_soc': initial_battery_soc
     }
+    
+    # Валидация
+    errors = validate_inputs(params)
+    if errors:
+        for err in errors:
+            st.error(err)
+        st.stop()   # Прерываем выполнение кнопки, дальше код не идёт
+        # Альтернативно можно не вызывать st.stop(), а просто не выполнять расчёт,
+        # но st.stop() останавливает весь скрипт на этом месте, не меняя состояние.
+        # Это корректно, потому что мы не хотим менять show_map и запускать расчёт.
+        
+    # Если ошибок нет – скрываем карту и запускаем расчёт
+    st.session_state.show_map = False
+    
     with st.spinner("Идёт расчёт (может занять несколько минут)..."):
         try:
             pdf_path, df_results = run_simulation(params)
