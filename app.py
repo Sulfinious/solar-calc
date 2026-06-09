@@ -187,11 +187,11 @@ with st.sidebar:
     
     # 7. Размеры крыши
     st.subheader("🏠 Размер крыши")
-    roof_length = st.number_input("Длина крыши (м)", value=30.0)
-    roof_width = st.number_input("Ширина крыши (м)", value=30.0)
+    roof_length = st.number_input("Длина крыши (м)", value=25.0)
+    roof_width = st.number_input("Ширина крыши (м)", value=25.0)
     
     # Начальный SOC
-    initial_battery_soc = st.slider("Начальный заряд АКБ (%)", 0, 100, 60) / 100.0
+    initial_battery_soc = st.slider("Начальный заряд АКБ (%)", 0, 100, 50) / 100.0
 
 # ---------- ОСНОВНАЯ ОБЛАСТЬ ----------
 st.markdown("# 🌞 Моделирование солнечной электростанции")
