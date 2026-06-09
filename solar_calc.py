@@ -7,10 +7,8 @@ import os
 from streamlit_folium import st_folium
 import folium 
 from folium.plugins import Geocoder
-import leafmap.foliumap as leafmap
 
 from solar_calc import run_simulation
-
 
 st.set_page_config(page_title="Солнечная электростанция", layout="wide")
 
@@ -56,24 +54,15 @@ if 'show_map' not in st.session_state:
     st.session_state.show_map = True
 if 'calculation_done' not in st.session_state:
     st.session_state.calculation_done = False
-    
-# ---------- СИНХРОНИЗАЦИЯ ВРЕМЕННЫХ КООРДИНАТ С ОСНОВНЫМИ ----------
-if 'map_lat' in st.session_state and 'map_lon' in st.session_state:
-    st.session_state.lat = st.session_state.map_lat
-    st.session_state.lon = st.session_state.map_lon
-    del st.session_state.map_lat
-    del st.session_state.map_lon
-    
+
 # ---------- БОКОВАЯ ПАНЕЛЬ ----------
 with st.sidebar:
     st.title("⚙️ Параметры системы")
     st.markdown("---")
     
     st.subheader("📍 Местоположение")
-    # Поля ручного ввода (значения по умолчанию из session_state)
     lat_input = st.number_input("Широта", value=st.session_state.lat, format="%.6f")
     lon_input = st.number_input("Долгота", value=st.session_state.lon, format="%.6f")
-    # При ручном изменении обновляем session_state
     if lat_input != st.session_state.lat or lon_input != st.session_state.lon:
         st.session_state.lat = lat_input
         st.session_state.lon = lon_input
@@ -171,7 +160,6 @@ with st.sidebar:
 st.markdown("# 🌞 Моделирование солнечной электростанции")
 st.markdown("### Заполните параметры в боковой панели, затем нажмите кнопку ниже")
 
-# Кнопка расчёта
 if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
     st.session_state.show_map = False
     params = {
@@ -239,11 +227,10 @@ if st.button("🚀 ЗАПУСТИТЬ РАСЧЁТ", use_container_width=True):
         except Exception as e:
             st.error(f"Ошибка при расчёте: {e}")
 
-# Карта (показываем, только если расчёт ещё не выполнен)
+# ---------- КАРТА (показываем только до расчёта) ----------
 if not st.session_state.calculation_done and st.session_state.show_map:
     st.subheader("🗺️ Кликните по карте, чтобы выбрать местоположение")
     
-    # Создаём карту с правильным тайлом
     m = folium.Map(
         location=[st.session_state.lat, st.session_state.lon],
         zoom_start=8,
@@ -252,11 +239,10 @@ if not st.session_state.calculation_done and st.session_state.show_map:
     )
     folium.Marker([st.session_state.lat, st.session_state.lon], tooltip="Текущая точка").add_to(m)
     
-    # Поиск по городам
-    from folium.plugins import Geocoder
-    m.add_child(Geocoder(position='topright', collapsed=True, placehold-er='🔍 Поиск города...'))
+    # Поиск по городам (исправлена опечатка)
+    m.add_child(Geocoder(position='topright', collapsed=True, placeholder='🔍 Поиск города...'))
     
-    # Карта
+    # Отображаем карту
     map_data = st_folium(m, width='100%', height=500)
     
     # Кнопка сброса вида
@@ -267,16 +253,29 @@ if not st.session_state.calculation_done and st.session_state.show_map:
             st.session_state.lon = 136.567232
             st.rerun()
     
+    # Обработка клика или перетаскивания маркера
     if map_data and map_data.get('last_clicked'):
         clicked_lat = map_data['last_clicked']['lat']
         clicked_lon = map_data['last_clicked']['lng']
-        st.session_state.map_lat = clicked_lat
-        st.session_state.map_lon = clicked_lon
-        st.rerun()
-
-    st.caption("💡 Кликните по карте – координаты автоматически подставятся в поля ввода")
+        # Обновляем только если координаты изменились
+        if abs(clicked_lat - st.session_state.lat) > 1e-8 or abs(clicked_lon - st.session_state.lon) > 1e-8:
+            st.session_state.lat = clicked_lat
+            st.session_state.lon = clicked_lon
+            st.rerun()
+    elif map_data and map_data.get('last_object_clicked') and map_data['last_object_clicked'].get('latlng'):
+        # Если перетащили маркер
+        marker_lat = map_data['last_object_clicked']['latlng'][0]
+        marker_lon = map_data['last_object_clicked']['latlng'][1]
+        if abs(marker_lat - st.session_state.lat) > 1e-8 or abs(marker_lon - st.session_state.lon) > 1e-8:
+            st.session_state.lat = marker_lat
+            st.session_state.lon = marker_lon
+            st.rerun()
     
-# ---------- РЕЗУЛЬТАТЫ (после расчёта) ----------
+    # Отображаем текущие координаты (с карты или из сессии)
+    st.markdown(f'<div class="coord-text">📍 Текущие координаты: широта {st.session_state.lat:.6f}, долгота {st.session_state.lon:.6f}</div>', unsafe_allow_html=True)
+    st.caption("💡 Кликните по карте или перетащите маркер – координаты автоматически обновятся в полях ввода.")
+
+# ---------- РЕЗУЛЬТАТЫ ----------
 if st.session_state.get('calculation_done', False):
     df = st.session_state['df_results']
     st.subheader("📊 Результаты моделирования")
