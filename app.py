@@ -42,8 +42,8 @@ st.markdown("""
         color: #1c047b;
         font-weight: bold;
     }
-    .leaflet-control-attribution {
-        display: none !important;
+    .leaflet-bottom {
+        display: none;   /* скрывает всё, что внизу карты: атрибуцию, масштабную линейку и т.д. */
     }
 </style>
 """, unsafe_allow_html=True)
