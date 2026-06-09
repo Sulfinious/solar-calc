@@ -239,7 +239,7 @@ if not st.session_state.calculation_done and st.session_state.show_map:
         control_scale=False,
         zoom_control=True,   # оставьте, если нужна кнопка зума
     )
-    )
+    
     folium.Marker([st.session_state.lat, st.session_state.lon], tooltip="Текущая точка").add_to(m)
     
     # Поиск по городам (исправлена опечатка)
