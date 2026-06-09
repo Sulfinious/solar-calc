@@ -235,7 +235,10 @@ if not st.session_state.calculation_done and st.session_state.show_map:
         location=[st.session_state.lat, st.session_state.lon],
         zoom_start=8,
         tiles='https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-        attr='CartoDB'
+        attr=' ',   # пустая строка, чтобы избежать флага в атрибуции
+        control_scale=False,
+        zoom_control=True,   # оставьте, если нужна кнопка зума
+    )
     )
     folium.Marker([st.session_state.lat, st.session_state.lon], tooltip="Текущая точка").add_to(m)
     
