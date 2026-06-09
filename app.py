@@ -42,6 +42,9 @@ st.markdown("""
         color: #1c047b;
         font-weight: bold;
     }
+    .leaflet-control-attribution {
+        display: none !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
