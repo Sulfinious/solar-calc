@@ -8,6 +8,7 @@ from streamlit_folium import st_folium
 import folium 
 from folium.plugins import Geocoder
 from folium.elements import Element
+from folium import DivIcon
 
 from solar_calc import run_simulation
 
@@ -238,7 +239,15 @@ if not st.session_state.calculation_done and st.session_state.show_map:
         tiles='https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
         attr=' '   # на всякий случай чистая строка
     )
-    folium.Marker([st.session_state.lat, st.session_state.lon], tooltip="Текущая точка").add_to(m)
+    folium.Marker(
+        location=[st.session_state.lat, st.session_state.lon],
+        tooltip='Текущая точка',
+        icon=DivIcon(
+            html='<div style="font-size: 24px; color: #e74c3c;">⭐</div>',
+            icon_size=(24, 24),
+            icon_anchor=(12, 24)
+        )
+    ).add_to(m)
     m.add_child(Geocoder(position='topright', collapsed=True, placeholder='🔍 Поиск города...'))
     
     # --- Скрываем всё, что отображается в нижней части карты ---
