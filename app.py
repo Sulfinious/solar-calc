@@ -7,6 +7,7 @@ import os
 from streamlit_folium import st_folium
 import folium 
 from folium.plugins import Geocoder
+from folium.elements import Element
 
 from solar_calc import run_simulation
 
@@ -41,9 +42,6 @@ st.markdown("""
         margin-top: 10px;
         color: #1c047b;
         font-weight: bold;
-    }
-    .leaflet-bottom {
-        display: none;   /* скрывает всё, что внизу карты: атрибуцию, масштабную линейку и т.д. */
     }
 </style>
 """, unsafe_allow_html=True)
@@ -238,9 +236,15 @@ if not st.session_state.calculation_done and st.session_state.show_map:
         location=[st.session_state.lat, st.session_state.lon],
         zoom_start=8,
         tiles='https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-        attr='CartoDB'
+        attr=' '   # на всякий случай чистая строка
     )
     folium.Marker([st.session_state.lat, st.session_state.lon], tooltip="Текущая точка").add_to(m)
+    m.add_child(Geocoder(position='topright', collapsed=True, placeholder='🔍 Поиск города...'))
+    
+    # --- Скрываем всё, что отображается в нижней части карты ---
+    m.get_root().header.add_child(
+        Element('<style>.leaflet-bottom { display: none !important; }</style>')
+    )
     
     # Поиск по городам (исправлена опечатка)
     m.add_child(Geocoder(position='topright', collapsed=True, placeholder='🔍 Поиск города...'))
